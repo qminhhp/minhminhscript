@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# Function to get service status using systemctl is-active
+# Returns "active", "inactive", "activating", "failed", etc., or "not-found"
+get_status() {
+  local service_name="$1"
+  # Check if the service unit exists first
+  # Use systemctl cat to check existence, quieter than list-unit-files | grep
+  if ! systemctl cat "${service_name}.service" &>/dev/null; then
+    echo "not-found"
+    return
+  fi
+  # Get the active state
+  systemctl is-active "$service_name.service" 2>/dev/null || echo "inactive" # Return inactive if is-active fails
+}
+
+# --- Helper function to clean status string ---
+clean_status() {
+  echo "$1" | tr -d '\r' | xargs
+}
+
+# Print header
+printf "+-----------------------------------------------------------------------+\n"
+printf "| Tình trạng hoạt động của các service hiện tại                         |\n" # Adjusted spacing slightly
+printf "+-----------------------------------------------------------------------+\n"
+
+# --- Check and print status for each service ---
+
+# LiteSpeed
+if systemctl cat lshttpd.service &>/dev/null; then
+  status_raw=$(get_status "lshttpd")
+  status=$(clean_status "$status_raw")
+  printf "| %-12s : %-54s |\n" "LiteSpeed" "$status"
+fi
+
+# MariaDB / MySQL
+db_service=""
+if systemctl cat mariadb.service &>/dev/null; then
+  db_service="mariadb"
+elif systemctl cat mysql.service &>/dev/null; then
+  db_service="mysql"
+elif systemctl cat mysqld.service &>/dev/null; then
+  db_service="mysqld"
+fi
+
+if [[ -n "$db_service" ]]; then
+  status_raw=$(get_status "$db_service")
+  status=$(clean_status "$status_raw")
+  display_name="MariaDB/MySQL"
+  if [[ "$db_service" == "mariadb" ]]; then
+    display_name="MariaDB"
+  elif [[ "$db_service" == "mysql" || "$db_service" == "mysqld" ]]; then
+    display_name="MySQL"
+  fi
+  printf "| %-12s : %-54s |\n" "$display_name" "$status"
+fi
+
+# Memcached (Standard)
+if systemctl cat memcached.service &>/dev/null; then
+  status_raw=$(get_status "memcached")
+  status=$(clean_status "$status_raw")
+  printf "| %-12s : %-54s |\n" "Memcached" "$status"
+fi
+
+# Redis (Using config file check OR service check)
+redis_service=""
+# Check service first
+if systemctl cat redis.service &>/dev/null; then
+  redis_service="redis"
+elif systemctl cat redis-server.service &>/dev/null; then
+  redis_service="redis-server"
+# Fallback to config file check if service not found by common names
+elif [[ -z "$redis_service" && (-f /etc/redis.conf || -f /etc/redis/redis.conf) ]]; then
+  # Attempt to get status even if unit name isn't standard, assuming 'redis' if config exists
+  # This might fail if the service name is very unusual
+  if systemctl cat redis.service &>/dev/null; then
+    redis_service="redis"
+  fi
+fi
+
+if [[ -n "$redis_service" ]]; then
+  status_raw=$(get_status "$redis_service")
+  status=$(clean_status "$status_raw")
+  printf "| %-12s : %-54s |\n" "Redis" "$status"
+fi
+
+# SSH
+ssh_service=""
+if systemctl cat sshd.service &>/dev/null; then
+  ssh_service="sshd"
+elif systemctl cat ssh.service &>/dev/null; then
+  ssh_service="ssh"
+fi
+
+if [[ -n "$ssh_service" ]]; then
+  status_raw=$(get_status "$ssh_service")
+  status=$(clean_status "$status_raw")
+  printf "| %-12s : %-54s |\n" "SSH" "$status"
+fi
+
+# Crond
+cron_service=""
+if systemctl cat crond.service &>/dev/null; then
+  cron_service="crond"
+elif systemctl cat cron.service &>/dev/null; then
+  cron_service="cron"
+fi
+
+if [[ -n "$cron_service" ]]; then
+  status_raw=$(get_status "$cron_service")
+  status=$(clean_status "$status_raw")
+  printf "| %-12s : %-54s |\n" "Crond" "$status"
+fi
+
+# Fail2Ban
+if systemctl cat fail2ban.service &>/dev/null; then
+  status_raw=$(get_status "fail2ban")
+  status=$(clean_status "$status_raw")
+  printf "| %-12s : %-54s |\n" "Fail2Ban" "$status"
+fi
+
+# nftables (Currently commented out in your version, kept it that way)
+# if systemctl cat nftables.service &> /dev/null; then
+#   status_raw=$(get_status "nftables")
+#   status=$(clean_status "$status_raw")
+#   printf "| %-12s : %-54s |\n" "nftables" "$status"
+# fi
+
+# firewalld
+if systemctl cat firewalld.service &>/dev/null; then
+  status_raw=$(get_status "firewalld")
+  status=$(clean_status "$status_raw")
+  printf "| %-12s : %-54s |\n" "FirewallD" "$status"
+fi
+
+# Print footer
+printf "+-----------------------------------------------------------------------+\n"
+
+# Execute the external script (as in your provided code)
+if [[ -f /etc/wptt/wptt-service-main ]]; then
+  . /etc/wptt/wptt-service-main 1
+else
+  printf "| WPTT script not found: /etc/wptt/wptt-service-main                   |\n"
+  printf "+-----------------------------------------------------------------------+\n"
+
+fi

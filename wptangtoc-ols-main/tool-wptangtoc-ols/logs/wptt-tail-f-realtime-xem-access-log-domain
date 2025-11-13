@@ -1,0 +1,130 @@
+#!/bin/bash
+# @author: Gia Tuấn
+# @website: https://wptangtoc.com
+# @since: 2025
+
+function huong_dan() {
+  việc xem access log theo thời gian thực cho một domain cụ thể thông qua wptangtoc ols.
+
+  Tính năng xem access log domain theo thời gian thực trong wptangtoc ols có thể được hiểu ngắn gọn như sau:
+
+  Xác định vị trí file log: OpenLiteSpeed thường lưu access log cho mỗi virtual host [tương ứng với mỗi domain] trong một file riêng biệt. Đường dẫn phổ biến có thể là /usr/local/lsws/domain.com/logs/access.log. Script wptangtoc ols có thể cung cấp một lệnh để xem access log theo thời gian thực truy cập vào file log này.
+
+  Tính năng này hỗ trợ người dùng dễ dàng hơn trong việc tìm và sử dụng các công cụ có sẵn của hệ thống để xem access log của OpenLiteSpeed cho từng domain. Điều này giúp quản trị viên website nhanh chóng kiểm tra lưu lượng truy cập, phát hiện lỗi hoặc các hoạt động bất thường liên quan đến một website cụ thể.
+}
+
+. /etc/wptt/.wptt.conf
+if [[ $ngon_ngu = '' ]]; then
+  ngon_ngu='vi'
+fi
+. /etc/wptt/lang/$ngon_ngu.sh
+
+. /etc/wptt/echo-color
+echo ""
+echo ""
+echo ""
+echo "========================================================================="
+echo "|$quan_ly_logs => thời gian thực xem access log domain                  |"
+echo "========================================================================="
+echo ""
+. /etc/wptt/tenmien
+echo ""
+echo ""
+echo "$lua_chon_website_ban_muon xem access logs: "
+echo ""
+lua_chon_NAME
+
+if [[ "$NAME" = "0" || "$NAME" = "" ]]; then
+  . /etc/wptt/wptt-logs-main 1
+fi
+
+if [[ ! -d /usr/local/lsws/$NAME/logs ]]; then
+  echo "Bạn chưa kích hoạt ghi access log domain cho domain $NAME"
+  echo "Tính năng này mình tắt theo mặc định để bảo đảm hiệu suất tốc độ"
+  echo "Nếu bạn có nhu cầu xem log thì hãy bật tính năng ghi access logs domain"
+  sleep 2
+  echo -e "Bạn có muốn bắt đầu ghi access log cho domain ${NAME} ?: "
+  prompt="$nhap_lua_chon_cua_ban [1-2]: "
+  dongy="n"
+  options=("$dong_y" "$khong_dong_y")
+  PS3="$prompt"
+  select opt in "${options[@]}"; do
+    case "$REPLY" in
+    1)
+      dongy="y"
+      break
+      ;;
+
+    2)
+      dongy="n"
+      break
+      ;;
+
+    $((${#options[@]} + 1)))
+      printf "\n$ban_nhap_sai_he_thong_se_chon_khong_dong_y\n"
+      break
+      ;;
+    *)
+      printf "$ban_nhap_sai_he_thong_se_chon_khong_dong_y\n"
+      break
+      ;;
+    esac
+  done
+
+  if [[ "$dongy" = 'y' ]]; then
+    _runing "Kích hoạt ghi access log domain $NAME"
+    . /etc/wptt/logs/wptt-bat-logs-domain $NAME >/dev/null 2>&1
+    _rundone "Kích hoạt ghi access log domain $NAME"
+    LOG_FILE="/usr/local/lsws/$NAME/logs/access.log"
+
+    MAX_RETRIES=10
+    SLEEP_INTERVAL=3 # Thời gian chờ tính bằng giây
+
+    # Khởi tạo biến đếm
+    retries=0
+
+    # Vòng lặp while để kiểm tra file
+    while [[ ! -f "$LOG_FILE" ]]; do
+      # Tăng biến đếm
+      ((retries++))
+
+      # Kiểm tra xem đã đạt đến số lần thử tối đa chưa
+      if [[ "$retries" -gt "$MAX_RETRIES" ]]; then
+        echo "Lỗi: File $LOG_FILE không được tạo sau $MAX_RETRIES lần thử."
+        check_menu_wptangtoc_active=$1
+        if [[ $check_menu_wptangtoc_active = "98" ]]; then
+          . /etc/wptt/wptt-logs-main 1
+        fi
+        exit
+      fi
+      echo "File $LOG_FILE chưa tồn tại. Đang chờ $SLEEP_INTERVAL giây... (Lần thử: $retries/$MAX_RETRIES)"
+      sleep "$SLEEP_INTERVAL"
+    done
+
+  fi
+  # . /etc/wptt/wptt-logs-main 1
+  # exit
+fi
+
+if [[ ! -f /usr/local/lsws/"$NAME"/logs/access.log ]]; then
+  echo "file access.log của website $NAME không tồn tại"
+  check_menu_wptangtoc_active=$1
+  if [[ $check_menu_wptangtoc_active = "98" ]]; then
+    . /etc/wptt/wptt-logs-main 1
+  fi
+  exit
+fi
+
+echo "đường dẫn thư mục lưu trữ logs: /usr/local/lsws/$NAME/logs"
+echo "đường dẫn file lưu trữ access log: /usr/local/lsws/$NAME/logs/access.log"
+echo "========================================================================="
+echo ""
+echo "Hướng dẫn sử dụng: ctrl + c để thoát"
+sleep 4
+echo "========================================================================="
+echo "Nội dung access log của domain $NAME được hiển thị theo thời gian thực: "
+tail -f /usr/local/lsws/"$NAME"/logs/access.log
+check_menu_wptangtoc_active=$1
+if [[ $check_menu_wptangtoc_active = "98" ]]; then
+  . /etc/wptt/wptt-logs-main 1
+fi

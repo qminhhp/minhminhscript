@@ -1,0 +1,47 @@
+#!/bin/bash
+
+function huong_dan(){
+Tính năng Hủy thiết lập chặn hết quốc gia ngoại trừ quốc gia cụ thể được phép CSF trong WPTangToc OLS là hành động gỡ bỏ cấu hình tường lửa CSF đang hoạt động ở chế độ chỉ cho phép một số quốc gia truy cập.
+
+Sau khi hủy, máy chủ của bạn sẽ không còn tự động chặn tất cả các quốc gia không nằm trong danh sách được phép trước đó nữa.
+
+🎯 Mục đích của việc hủy bỏ cấu hình nghiêm ngặt này
+ * Mở rộng phạm vi truy cập: Khi bạn muốn cho phép truy cập từ nhiều quốc gia hơn, không chỉ giới hạn trong danh sách whitelist đã thiết lập.
+ * Khắc phục sự cố chặn nhầm: Nếu cấu hình chỉ cho phép đang vô tình chặn các người dùng hợp lệ hoặc các dịch vụ quan trọng từ những quốc gia chưa được thêm vào danh sách.
+ * Thay đổi chiến lược kiểm soát truy cập: Quyết định chuyển sang một phương pháp ít hạn chế hơn, ví dụ như không chặn theo quốc gia nữa, hoặc chuyển sang sử dụng danh sách chặn cụ thể [CC_DENY] thay vì chỉ cho phép [CC_ALLOW].
+ * Đơn giản hóa lại cấu hình: Nếu việc duy trì danh sách chỉ cho phép trở nên phức tạp hoặc không còn cần thiết.
+
+Tóm lại, tính năng này giúp bạn dễ dàng gỡ bỏ chính sách kiểm soát truy cập địa lý nghiêm ngặt chỉ cho phép một số quốc gia, mở cửa cho truy cập từ nhiều khu vực hơn, đồng thời vẫn giữ lại các lớp bảo vệ khác của tường lửa CSF.
+}
+
+
+echo "========================================================================="
+echo "|Quản lý bảo mật => CSF => Hủy bỏ chặn toàn bộ Quốc gia chỉ cho phép một số quốc gia|"
+echo "========================================================================="
+
+. /etc/wptt/echo-color
+if [ ! -f /etc/csf/csf.conf ]; then
+	echoDo "Bạn chưa cài đặt CSF"
+	. /etc/wptt/bao-mat/csf-main 1
+fi
+
+countryblicklist=`grep "CC_ALLOW_FILTER =\ " /etc/csf/csf.conf | awk 'NR==1 {print $3}' | cut -d \" -f 2`
+if [ "$countryblicklist" = "" ]; then
+echo "========================================================================="
+echo "Hien tai CSF Firewall khong block dat nuoc chưa được thiết lập. "
+echo "-------------------------------------------------------------------------"
+. /etc/wptt/bao-mat/csf-main 1
+fi
+_runing "Tắt tính năng chặn toàn bộ quốc gia chỉ cho phép một số quốc gia được truy cập"
+sed -i "s/.*CC_ALLOW_FILTER\ =.*/CC_ALLOW_FILTER = \"\"/g" /etc/csf/csf.conf
+csf -x >/dev/null 2>&1
+csf -e >/dev/null 2>&1
+systemctl restart csf
+systemctl restart lfd
+_rundone "Tắt tính năng chặn toàn bộ quốc gia chỉ cho phép một số quốc gia được truy cập"
+
+check_menu_wptangtoc_active=$1
+if [[ $check_menu_wptangtoc_active = "98" ]];then
+. /etc/wptt/bao-mat/csf-main 1
+fi
+

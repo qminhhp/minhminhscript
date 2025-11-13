@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Kịch bản để gỡ chặn thủ công một địa chỉ IP khỏi XDP map,
+# tương thích với XDP dùng __builtin_bswap32.
+
+set -e
+
+# --- CẤU HÌNH ---
+# Tên map phải khớp với map được dùng để chặn
+MAP_NAME="log_blacklist"
+
+# --- LOGIC CHÍNH ---
+
+# 1. Kiểm tra xem người dùng có cung cấp IP không
+if [ -z "$1" ]; then
+  echo "Lỗi: Vui lòng cung cấp địa chỉ IP cần gỡ chặn."
+  echo "Ví dụ sử dụng: sudo $0 1.2.3.4"
+  exit 1
+fi
+
+IP_TO_UNBAN=$1
+
+# 2. Tìm ID của BPF map
+MAP_ID=$(sudo bpftool map list | grep "$MAP_NAME" | awk '{print $1}' | sed 's/://' || true)
+
+if [ -z "$MAP_ID" ]; then
+  echo "Lỗi: Không tìm thấy map '$MAP_NAME'."
+  exit 1
+fi
+
+# 3. Chuyển đổi IP sang dạng 4 byte hexa, little-endian
+#    (PHẢI GIỐNG HỆT logic của script chặn để tìm đúng key)
+HEX_KEY=$(echo "$IP_TO_UNBAN" |
+  awk -F. '{
+            printf "0x%02x 0x%02x 0x%02x 0x%02x\n", $4, $3, $2, $1
+          }')
+
+echo "Đang gỡ chặn IP: $IP_TO_UNBAN"
+
+# 4. Xóa IP khỏi BPF map bằng key
+#    Lệnh `delete` chỉ cần `key`, không cần `value`.
+sudo bpftool map delete id "$MAP_ID" key $HEX_KEY
+
+echo "✅ Đã gỡ thành công IP $IP_TO_UNBAN khỏi danh sách đen."
+
+# 5. Kiểm tra lại để chắc chắn key không còn tồn tại
+echo "--- Kiểm tra lại map '$MAP_NAME' ---"
+# Lệnh `lookup` sẽ thất bại (exit code != 0) nếu không tìm thấy key
+if sudo bpftool map lookup id "$MAP_ID" key $HEX_KEY >/dev/null 2>&1; then
+  echo "⚠️ Cảnh báo: Vẫn tìm thấy IP $IP_TO_UNBAN trong map. Gỡ chặn có thể đã thất bại."
+else
+  echo "👍 Xác nhận: IP $IP_TO_UNBAN không còn trong map."
+fi

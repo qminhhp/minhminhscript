@@ -1,0 +1,82 @@
+#!/bin/bash
+
+function huong_dan(){
+Tính năng Xóa database [hay Xóa cơ sở dữ liệu] là hành động loại bỏ hoàn toàn một cơ sở dữ liệu cụ thể, bao gồm tất cả các bảng [tables], dữ liệu chứa trong đó, các chỉ mục [indexes] và cấu trúc liên quan khỏi máy chủ cơ sở dữ liệu [MariaDB]
+
+Nói một cách đơn giản, đây là việc bạn vứt bỏ toàn bộ một kho chứa dữ liệu cùng với tất cả những gì bên trong nó.
+
+Mục Đích Chính
+* Loại bỏ database không còn sử dụng: Khi một website hoặc dự án không còn hoạt động, việc xóa database của nó giúp giải phóng dung lượng lưu trữ và tài nguyên máy chủ.
+* Dọn dẹp database thử nghiệm/cũ: Xóa các database đã được tạo cho mục đích kiểm thử hoặc các phiên bản cũ không còn cần thiết.
+* Làm lại từ đầu: Đôi khi cần xóa database cũ để tạo lại một database mới hoàn toàn cho một ứng dụng.
+* Xóa dữ liệu vĩnh viễn: Khi cần loại bỏ hoàn toàn dữ liệu nhạy cảm không còn được phép lưu trữ.
+
+Lưu ý quan trọng: LUÔN LUÔN SAO LƯU [BACKUP] TRƯỚC KHI XÓA: Hãy chắc chắn bạn có một bản sao lưu đầy đủ và còn tốt của database trước khi quyết định xóa.
+
+}
+
+
+. /etc/wptt/.wptt.conf
+echo ""
+echo ""
+echo ""
+echo "========================================================================="
+echo "|Quản lý Database => Xóa database                                       |"
+echo "========================================================================="
+echo ""
+echo ""
+
+. /etc/wptt/echo-color
+
+echo "Danh sách Database: "
+# mariadb -u "$database_admin_username" -p"$database_admin_password" -e "show databases where \`database\` not in('information_schema', 'test', 'sys', 'mysql', 'performance_schema')"
+
+selects=()
+for entry in $(mariadb -u "$database_admin_username" -p"$database_admin_password" -e "show databases where \`database\` not in('information_schema', 'test', 'sys', 'mysql', 'performance_schema')" | grep '_dbname'); do
+	selects+=("$entry")
+done
+
+PS3="
+-//- Nhập lựa chọn database bạn cần xóa [0=Thoát]: "
+select select in ${selects[@]}; do
+	databaseclear=$select
+	break
+done
+
+
+# xac nhan thoai khoi tien trinh
+
+if [ "$databaseclear" = "0" ]; then
+    clear
+    . /etc/wptt/wptt-db-main 1
+    exit
+fi
+
+if [ "$databaseclear" = "" ]; then
+    clear
+    . /etc/wptt/wptt-db-main 1
+    exit
+fi
+
+
+# read -p "Nhập tên database bạn cần xóa: [0=Thoat]:" databaseclear
+read -p "Xác nhận xóa database $databaseclear ? (y/n): " confirm
+
+if [ "$confirm" != "y" ]; then
+    clear
+    . /etc/wptt/wptt-db-main 1
+    exit
+fi
+
+if [[ "$confirm" = "y" ]]; then
+	_runing "Xóa database $databaseclear"
+	echo "Xoá database ${databaseclear}: $(date '+%d-%m-%Y %H:%M')" >> /var/log/wptangtoc-ols.log
+    mariadb -u "$database_admin_username" -p"$database_admin_password" -e "DROP DATABASE ${databaseclear}"
+	_rundone "Xóa database $databaseclear"
+fi
+
+check_menu_wptangtoc_active=$1
+if [[ $check_menu_wptangtoc_active = "98" ]];then
+. /etc/wptt/wptt-db-main 1
+fi
+

@@ -1,0 +1,49 @@
+#!/bin/bash
+echo ""
+echo ""
+echo ""
+echo "========================================================================="
+echo "|Quản lý mã nguồn => Truy cập nhanh mã nguồn website                    |"
+echo "========================================================================="
+NAME=$1
+if [[ $NAME = '98' ]];then
+NAME=''
+fi
+
+. /etc/wptt/tenmien
+echo ""
+echo ""
+echo "Truy cập nhanh vào thư mục mã nguồn: "
+echo ""
+lua_chon_NAME
+
+. /etc/wptt/echo-color
+
+if [[ "$NAME" = "0" || "$NAME" = "" ]]; then
+    . /etc/wptt/wptt-ma-nguon-main 1
+fi
+
+pathcheck="/etc/wptt/vhost/.$NAME.conf"
+if [[ ! -f "$pathcheck" ]]; then
+    clear
+	echoDo "Tên miền không tồn tại trên hệ thống này"
+    sleep 3
+	    . /etc/wptt/wptt-ma-nguon-main 1
+    exit
+fi
+
+gowpt() {
+  local target_dir="/usr/local/lsws/$1/html"
+  echo "==> Chuyển đến $target_dir"
+  if cd "$target_dir"; then
+    # Chạy lệnh ls sau khi cd thành công (tùy chọn)
+    ls -al
+  else
+    echo "Lỗi: Không thể truy cập thư mục $target_dir" >&2
+    return 1 # Trả về mã lỗi
+  fi
+}
+gowpt $NAME
+unset pathcheck NAME
+unset -f gowpt
+

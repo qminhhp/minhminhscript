@@ -1,0 +1,434 @@
+#!/bin/bash
+# @author: Gia Tuấn
+# @website: https://wptangtoc.com
+# @email: giatuan@wptangtoc.com
+# @since: 2025
+
+function huong_dan() {
+  Tính năng tự động sao lưu website là một yếu tố thiết yếu để đảm bảo an toàn dữ liệu và khả năng phục hồi cho bất kỳ trang web nào. Việc đầu tư vào một giải pháp sao lưu tự động đáng tin cậy là một quyết định khôn ngoan để bảo vệ tài sản website của bạn.
+
+  Đúng vậy, tính năng tự động sao lưu website [automatic website backup] là một quy trình được thiết lập để tự động tạo ra các bản sao của dữ liệu và tệp tin website của bạn theo một lịch trình định sẵn mà không cần sự can thiệp thủ công của con người.
+
+  Những bản sao này đóng vai trò như một [phao cứu sinh], cho phép bạn khôi phục lại website về trạng thái hoạt động ổn định trước đó nếu có sự cố xảy ra.
+
+  Tính năng này sao lưu mã nguồn [Định dạng .zip] và database website [định dạng .sql hoặc .sql.gz - nếu đã thiết lập]
+
+  Hỗ trợ sao lưu tại local máy chủ và đám mây drive
+}
+
+echo ""
+echo ""
+echo ""
+echo "========================================================================="
+echo "|Sao lưu & khôi phục => Thiết lập tự động sao lưu website               |"
+echo "========================================================================="
+echo ""
+echo ""
+if [ "$(ls -A /etc/wptt/vhost | grep -v '^\.\.conf$' | sort -uV)" ]; then
+  echo "========================================================================="
+  echo "Danh sách domain đã kích hoạt tự động backup website:"
+  echo "========================================================================="
+  for entry in $(ls -A /etc/wptt/vhost | grep -v '^\.\.conf$' | sort -uV); do
+    domain=$(echo $entry | sed 's/^.//' | sed 's/.conf//')
+    path="/etc/cron.d/backup$domain.cron"
+    i=1
+    if [[ -f "$path" ]]; then
+      checkauto="Đã kích hoạt tự động lúc "
+      checkauto1=$(cat /etc/cron.d/backup$domain.cron | cut -f2 -d " ")
+      checkauto2=$(cat /etc/cron.d/backup$domain.cron | cut -f5 -d " ")
+      kiemtra_doi_so=$(grep -c "1998" /etc/wptt-auto/$domain-auto-backup)
+      if [[ "$kiemtra_doi_so" = "0" ]]; then
+        tinhnang=""
+      fi
+
+      if [[ "$kiemtra_doi_so" = "1" ]]; then
+        if [[ $(cat ~/.config/rclone/rclone.conf | grep 'onedrive') ]]; then
+          tinhnang="| backup xong uploads lên OneDrive"
+        else
+          tinhnang="| backup xong uploads lên Gooole Drive"
+        fi
+      fi
+
+      if [[ "$kiemtra_doi_so" = "2" ]]; then
+        if [[ $(cat ~/.config/rclone/rclone.conf | grep 'onedrive') ]]; then
+          tinhnang="| backup xong uploads lên OneDrive và xóa luôn file backup tại local"
+        else
+          tinhnang="| backup xong uploads lên Gooole Drive và xóa luôn file backup tại local"
+        fi
+      fi
+
+      if [ "$checkauto2" = "0" ] || [ "$checkauto2" = "7" ]; then
+        thu123=" giờ chủ nhật hàng tuần"
+      fi
+      if [ "$checkauto2" = "1" ]; then
+        thu123=" giờ thứ hai hàng tuần"
+      fi
+      if [ "$checkauto2" = "2" ]; then
+        thu123=" giờ thứ ba hàng tuần"
+      fi
+      if [ "$checkauto2" = "3" ]; then
+        thu123=" giờ thứ tư hàng tuần"
+      fi
+      if [ "$checkauto2" = "4" ]; then
+        thu123=" giờ thứ năm hàng tuần"
+      fi
+      if [ "$checkauto2" = "5" ]; then
+        thu123=" giờ thứ sáu hàng tuần"
+      fi
+      if [ "$checkauto2" = "6" ]; then
+        thu123=" giờ thứ bảy hàng tuần"
+      fi
+
+      if [ "$checkauto2" = "*" ]; then
+        thu123=" giờ hàng ngày"
+      fi
+
+      if [ "$checkauto2" = "*" ]; then
+        thu123=" giờ hàng ngày"
+        check_hang_thang=$(cat /etc/cron.d/backup$domain.cron | cut -f3 -d " ")
+        if [[ $check_hang_thang != '*' ]]; then
+          thu123=" giờ ngày $check_hang_thang hàng tháng"
+        fi
+      fi
+
+    else
+
+      checkauto="Chưa được kích hoạt"
+      checkauto1=""
+      checkauto2=""
+      thu123=" tự động sao lưu backup website"
+      tinhnang=""
+    fi
+    echo "Website $domain $checkauto$checkauto1$thu123 $tinhnang"
+  done
+  echo "========================================================================="
+  echo
+fi
+
+. /etc/wptt/.wptt.conf
+
+function lua_chon_NAME() {
+  NAME=""
+  if [ "$(ls -At /etc/wptt/vhost)" ]; then
+    selects=()
+    for entry in $(ls -A /etc/wptt/vhost | grep -v '^\.\.conf$' | sort -uV); do
+      NAME=$(echo $entry | sed 's/^.//' | sed 's/.conf//')
+      if [ "$NAME" != "${NAME/./}" ] && [ "$NAME" != '.' ]; then #điều kiện domain phải có dấu . và lỗi chỉ có only .
+        if [[ ! -f /etc/cron.d/backup$NAME.cron ]]; then
+          selects+=("$NAME")
+        fi
+      fi
+    done
+
+    if [[ $selects = '' ]]; then
+      echo "Tất cả domain trên hệ thống đã được kích hoạt sao lưu backup website tự động hết rồi"
+      . /etc/wptt/wptt-backup-restore-main 1
+    fi
+
+    PS3="
+-//- Nhập lựa chọn website của bạn [0=Thoát]: "
+    select select in ${selects[@]}; do
+      NAME=$select
+      index=$REPLY
+      break
+    done
+  else
+    clear
+    echo "Không xác định được domain nào."
+    exit
+  fi
+}
+
+echo ""
+echo ""
+echo "Lựa chọn website bạn muốn thiết lập tự động backup sao lưu website: "
+echo ""
+lua_chon_NAME
+
+. /etc/wptt/echo-color
+if [[ "$NAME" = "0" || "$NAME" = "" ]]; then
+  . /etc/wptt/wptt-backup-restore-main 1
+fi
+
+pathcheck="/etc/wptt/vhost/.$NAME.conf"
+if [[ ! -f "$pathcheck" ]]; then
+  clear
+  echoDo "Tên miền không tồn tại trên hệ thống này"
+  sleep 3
+  . /etc/wptt/wptt-backup-restore-main 1
+  exit
+fi
+
+if [ -f /etc/cron.d/backup$NAME.cron ]; then
+  echoDo "website $NAME đã được kích hoạt tự động sao lưu backup trước đó rồi!"
+  sleep 3
+  . /etc/wptt/wptt-backup-restore-main 1
+  exit
+fi
+
+echo "Thiết lập tự động sao lưu website $NAME: $(date '+%d-%m-%Y %H:%M')" >>/var/log/wptangtoc-ols.log
+
+. /etc/wptt/vhost/."$NAME".conf
+
+echo -n "Bạn muốn tự động backup website lúc mấy giờ? [0-23]: "
+read gio
+
+if [[ ! $gio =~ ^-?[0-9]+$ ]]; then
+  echo "Bạn nhập sai dữ liệu thời gian từ 0 đến 23, hệ thống sẽ tự động chọn giá trị là 1h sáng"
+  gio="1"
+fi
+
+if (("$gio" > "23")); then
+  echo "Bạn nhập sai dữ liệu thời gian từ 0 đến 23, hệ thống sẽ tự động chọn giá trị là 1h sáng"
+  gio="1"
+fi
+
+if [[ "$gio" = "" ]]; then
+  gio="1"
+  echo "Bạn không nhập dữ liệu hệ thống sẽ tự động chọn là 1h sáng"
+fi
+
+echo "Bạn muốn tự động backup website vào thứ mấy? "
+echo ""
+. /etc/wptt/wptt-times-tuan
+tuan
+
+if [ "$thu" = "0" ] || [ "$thu" = "7" ]; then
+  thu12="chủ nhật hàng tuần"
+fi
+if [ "$thu" = "1" ]; then
+  thu12="thứ hai hàng tuần"
+fi
+if [ "$thu" = "2" ]; then
+  thu12="thứ ba hàng tuần"
+fi
+if [ "$thu" = "3" ]; then
+  thu12="thứ tư hàng tuần"
+fi
+if [ "$thu" = "4" ]; then
+  thu12="thứ năm hàng tuần"
+fi
+if [ "$thu" = "5" ]; then
+  thu12="thứ sáu hàng tuần"
+fi
+if [ "$thu" = "6" ]; then
+  thu12="thứ bảy hàng tuần"
+fi
+
+if [ "$thu" = "*" ]; then
+  thu12="hàng ngày"
+fi
+
+if [ "$thu" = "9" ]; then
+  thu12="ngày $ngay_cua_thang hàng tháng"
+fi
+
+#ngẫu nhiên phút: để có thể tránh cron 0 để tránh cao điểm nhất, nhiều khi anh em dùng 1 tài khoản onedrive hoặc onedrive cho nhiều vps
+phut=$(shuf -i2-58 -n1)
+if [[ $phut = '' ]]; then
+  phut='0'
+fi
+
+if [[ -f /usr/local/lsws/$NAME/html/wp-load.php ]]; then #luy tuyen backup hoi, ktra có dùng WordPres?
+  unset response_loai_backup
+  SIZE_KB=$(du -sk /usr/local/lsws/$NAME/html/wp-content/uploads | awk '{print $1}')
+  LIMIT_KB=$((1024 * 1024))               # 1GB in KB
+  if [ "$SIZE_KB" -gt "$LIMIT_KB" ]; then #dieu kien lon hon 1GB
+    . /etc/wptt/php/php-cli-domain-config $NAME
+
+    if [[ $(/usr/local/lsws/lsphp${phien_ban_php_domain_thuc_thi}/bin/php /usr/local/bin/wp option get uploads_use_yearmonth_folders --allow-root --path=/usr/local/lsws/$NAME/html 2>/dev/null) = '1' ]]; then #kiểm tra website WordPress này, để chế độ thư mục uploads theo phân vùng time không, nếu không thì không được phép chạy
+      prompt="Nhập lựa chọn loại sao lưu của bạn [1-2]: "
+      response_loai_backup="1"
+      options=("Sao lưu Full đầy đủ" "Sao lưu luỹ tiến từng phần tiết kiệm ổ cứng")
+      PS3="$prompt"
+      select opt in "${options[@]}"; do
+        case "$REPLY" in
+        1)
+          response_loai_backup="1"
+          break
+          ;;
+
+        2)
+          response_loai_backup="2"
+          break
+          ;;
+
+        $((${#options[@]} + 1)))
+          printf "\nSao Luu full Binh thuong\n"
+          break
+          ;;
+        *)
+          printf "Sao Luu full Binh thuong\n"
+          break
+          ;;
+        esac
+      done
+
+    fi
+  fi
+fi
+
+echo "Bạn có chắc chắn muốn tự động sao lưu website $NAME lúc $phut phút $gio giờ $thu12 ?"
+prompt="Nhập lựa chọn của bạn [1-2]: "
+response="n"
+options=("Đồng ý" "Không đồng ý")
+PS3="$prompt"
+select opt in "${options[@]}"; do
+  case "$REPLY" in
+  1)
+    response="y"
+    break
+    ;;
+
+  2)
+    response="n"
+    break
+    ;;
+
+  $((${#options[@]} + 1)))
+    printf "\nBạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+    break
+    ;;
+  *)
+    printf "Bạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+    break
+    ;;
+  esac
+done
+
+if [[ "$response" = "y" ]]; then
+  mkdir -p /etc/wptt-auto
+  mkdir -p /usr/local/backup-website/"$NAME"
+
+  checkdathietlap=$(grep -rnw '/root/.config/rclone/rclone.conf' -e "wptangtoc" >>/dev/null 2>&1 && echo 1)
+  if [[ $checkdathietlap ]]; then
+
+    if [[ $(cat ~/.config/rclone/rclone.conf | grep 'onedrive') ]]; then
+      echo "Bạn có muốn uploads file backup tự động lên lưu trữ đám mây OneDrive không?"
+    else
+      echo "Bạn có muốn uploads file backup tự động lên lưu trữ đám mây Google Drive không?"
+    fi
+
+    prompt="Nhập lựa chọn của bạn [1-2]: "
+    uploads="n"
+    options=("Đồng ý" "Không đồng ý")
+    PS3="$prompt"
+    select opt in "${options[@]}"; do
+      case "$REPLY" in
+      1)
+        uploads="y"
+        break
+        ;;
+
+      2)
+        uploads="n"
+        break
+        ;;
+
+      $((${#options[@]} + 1)))
+        printf "\nBạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+        break
+        ;;
+      *)
+        printf "Bạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+        break
+        ;;
+      esac
+    done
+
+    if [[ "$uploads" = "y" ]]; then
+
+      tuan1="1998"
+      if [[ $(cat ~/.config/rclone/rclone.conf | grep 'onedrive') ]]; then
+        echo "Khi đã uploads lên OneDrive bạn có muốn tự động xóa file backup tại local không?"
+      else
+        echo "Khi đã uploads lên Google Drive bạn có muốn tự động xóa file backup tại local không?"
+      fi
+      prompt="Nhập lựa chọn của bạn [1-2]: "
+      delete="n"
+      options=("Đồng ý" "Không đồng ý")
+      PS3="$prompt"
+      select opt in "${options[@]}"; do
+        case "$REPLY" in
+        1)
+          delete="y"
+          break
+          ;;
+
+        2)
+          delete="n"
+          break
+          ;;
+
+        $((${#options[@]} + 1)))
+          printf "\nBạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+          break
+          ;;
+        *)
+          printf "Bạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+          break
+          ;;
+        esac
+      done
+
+      if [[ "$delete" = "y" ]]; then
+        tuan2="1998"
+      else
+        tuan2="12345"
+      fi
+
+    fi
+  fi
+  cat >"/etc/wptt-auto/$NAME-auto-backup" <<END
+#!/bin/bash
+. /etc/wptt/backup-restore/wptt-saoluu $NAME $tuan1 $tuan2
+END
+
+  if [[ $response_loai_backup = '2' ]]; then #backup luy tien ghi de
+    rm -f /etc/wptt-auto/$NAME-auto-backup
+    cat >"/etc/wptt-auto/$NAME-auto-backup" <<END
+#!/bin/bash
+. /etc/wptt/backup-restore/wptt-saoluu-luy-tien-tung-phan $NAME $tuan1 $tuan2
+END
+  fi
+
+  chmod 740 /etc/wptt-auto/$NAME-auto-backup
+
+  cron_thuc_thi="$phut $gio * * $thu"
+  if [[ $thu = '9' ]]; then # thêm option hàng tháng
+    thu='*'
+    cron_thuc_thi="$phut $gio $ngay_cua_thang * $thu"
+  fi
+
+  cat >"/etc/cron.d/backup$NAME.cron" <<END
+$cron_thuc_thi root /etc/wptt-auto/$NAME-auto-backup >/dev/null 2>&1
+END
+
+  if $(cat /etc/*release | grep -q "Ubuntu"); then
+    NAME_CRON_ubuntu=${NAME//[.]/_}
+    ln -sf /etc/cron.d/backup$NAME.cron /etc/cron.d/backup${NAME_CRON_ubuntu}_cron
+    systemctl restart cron.service
+  else
+    systemctl restart crond.service
+  fi
+  echo "-------------------------------------------------------------------------"
+  echo "website $NAME sẽ được tự động sao lưu vào $gio giờ $thu12 .      "
+  echo "-------------------------------------------------------------------------"
+  echo "Đường dẫn lưu trữ thư mục backup mã nguồn và database :/usr/local/backup-website/$NAME   "
+  if [[ "$uploads" = "y" ]]; then
+    echo "-------------------------------------------------------------------------"
+    if [[ $(cat ~/.config/rclone/rclone.conf | grep 'onedrive') ]]; then
+      echo "File backup trên OneDrive sẽ tự động lưu trữ tại thư mục: wptangtoc_ols_backup/$NAME"
+    else
+      echo "File backup trên Google Drive sẽ tự động lưu trữ tại thư mục: wptangtoc_ols_backup/$NAME"
+    fi
+  fi
+  echo "-------------------------------------------------------------------------"
+  echo "Nếu cần khôi phục lại website thì bạn hãy truy cập vào menu của WPTangToc OLS rồi sử dụng tính năng khôi phục website"
+  echo "-------------------------------------------------------------------------"
+fi
+
+check_menu_wptangtoc_active=$1
+if [[ $check_menu_wptangtoc_active = "98" ]]; then
+  . /etc/wptt/wptt-backup-restore-main 1
+fi

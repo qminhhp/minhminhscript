@@ -1,0 +1,104 @@
+#!/bin/bash
+
+function huong_dan() {
+  WPTangToc OLS có tính năng Tối ưu Heartbeat API, thì đây là một chức năng giúp bạn kiểm soát và giảm thiểu tác động của WordPress Heartbeat API lên hiệu suất máy chủ.
+
+  🎯 Mục đích của tính năng tối ưu:
+  * Giảm tải CPU: Hạn chế số lượng yêu cầu AJAX được gửi đi, giúp giảm đáng kể việc sử dụng CPU của máy chủ.
+  * Tăng tốc Admin: Làm cho khu vực quản trị WordPress hoạt động mượt mà và nhanh hơn.
+  * Ngăn chặn quá tải: Giúp website ổn định hơn, tiết kiệm tài nguyên máy chủ.
+
+  ✅ Lợi ích:
+  * Cải thiện hiệu suất server.
+  * Tăng tốc độ backend WordPress.
+
+  Tóm lại: Tính năng Tối ưu Heartbeat API trong WPTangToc OLS là một công cụ hữu ích giúp bạn kiểm soát các yêu cầu AJAX do WordPress tạo ra, nhằm giảm tải cho máy chủ và tăng tốc độ khu vực quản trị một cách hiệu quả.
+
+  link tham khảo chi tiết: https://wptangtoc.com/wordpress-heartbeat-api/
+}
+
+echo ""
+echo ""
+echo ""
+echo "========================================================================="
+echo "|Quản lý WordPress => Tối ưu heartbeat API                              |"
+echo "========================================================================="
+. /etc/wptt/tenmien
+echo ""
+echo ""
+echo "Lựa chọn website bạn muốn kích hoạt tối ưu Heartbeat API: "
+echo ""
+lua_chon_NAME
+
+. /etc/wptt/echo-color
+if [[ "$NAME" = "0" || "$NAME" = "" ]]; then
+  . /etc/wptt/wptt-wordpress-main 1
+fi
+
+pathcheck="/etc/wptt/vhost/.$NAME.conf"
+if [[ ! -f "$pathcheck" ]]; then
+  clear
+  echoDo "Tên miền không tồn tại trên hệ thống này"
+  sleep 3
+  . /etc/wptt/wptt-wordpress-main 1
+  exit
+fi
+
+pathcheckwp="/usr/local/lsws/$NAME/html/wp-load.php"
+if [[ ! -f "$pathcheckwp" ]]; then
+  clear
+  echoDo "Hệ thống xác nhận bạn không sử dụng WordPress"
+  echoDo "Tính năng này chỉcó thể hoạt động trên WordPress"
+  sleep 3
+  . /etc/wptt/wptt-wordpress-main 1
+  exit
+fi
+
+path="/etc/wptt/vhost/.$NAME.conf"
+
+pathcheckplugin="/usr/local/lsws/$NAME/html/wp-content/plugins/heartbeat-wptangtoc"
+if [[ -d "$pathcheckplugin" ]]; then
+  echo "ban da toi uu heart api wordpress roi"
+  . /etc/wptt/wptt-wordpress-main 1
+fi
+
+echo "Bạn có muốn kích hoạt tối ưu heartbeat api "
+prompt="Nhập lựa chọn của bạn [1-2]: "
+check="n"
+options=("Đồng ý" "Không đồng ý")
+PS3="$prompt"
+select opt in "${options[@]}"; do
+  case "$REPLY" in
+  1)
+    check="y"
+    break
+    ;;
+
+  2)
+    check="n"
+    break
+    ;;
+
+  $((${#options[@]} + 1)))
+    printf "\nBạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+    break
+    ;;
+  *)
+    printf "Bạn nhập sai hệ thống sẽ chọn là không đồng ý\n"
+    break
+    ;;
+  esac
+done
+
+if [[ "$check" = "y" ]]; then
+  _runing "Tối ưu heartbeat API"
+  . /etc/wptt/php/php-cli-domain-config $NAME
+  /usr/local/lsws/lsphp${phien_ban_php_domain_thuc_thi}/bin/php /usr/local/bin/wp plugin install https://wptangtoc.com/share/heartbeat-wptangtoc.zip --path=/usr/local/lsws/$NAME/html --activate --allow-root
+  . /etc/wptt/vhost/.$NAME.conf
+  chown -R $User_name_vhost:$User_name_vhost /usr/local/lsws/$NAME/html/wp-content/plugins/heartbeat-wptangtoc
+  _rundone "Tối ưu heartbeat API"
+fi
+check_menu_wptangtoc_active=$1
+if [[ $check_menu_wptangtoc_active = "98" ]]; then
+  . /etc/wptt/wptt-wordpress-main 1
+fi
