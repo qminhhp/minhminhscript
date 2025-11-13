@@ -124,6 +124,41 @@ Công cụ quản lý nhiều WordPress sites trên VPS với kiến trúc bảo
 - **Enable Development Mode** - Bật dev mode (bypass cache 3h)
 - **Check Cloudflare Status** - Kiểm tra trạng thái API config
 
+### 🔒 Security & Protection
+#### Firewall (UFW)
+- **Install UFW** - Cài đặt Uncomplicated Firewall
+- **Setup Basic Rules** - HTTP (80), HTTPS (443), SSH (22)
+- **Enable/Disable Firewall** - Bật/tắt firewall
+- **Allow/Deny Port** - Quản lý port rules
+- **Allow/Deny IP** - IP-based access control
+- **SSH Rate Limiting** - Giới hạn SSH connections (6/30s)
+- **Setup Common Ports** - MySQL, Redis, Memcached (localhost only)
+- **Block Attack Ports** - Block common attack ports
+- **Backup Rules** - Backup firewall configuration
+
+#### Fail2ban
+- **Install Fail2ban** - Cài đặt Fail2ban
+- **Setup WordPress Jails** - WordPress-specific protection
+  * wordpress-xmlrpc: Block XML-RPC brute force
+  * wordpress-wp-login: Block wp-login.php attacks
+  * wordpress-404: Block scanning attempts
+- **Enable/Disable Jail** - Quản lý jails
+- **Ban/Unban IP** - Manual IP management
+- **Whitelist IP** - IP whitelist
+- **Configure Jail Settings** - maxretry, findtime, bantime
+- **List Banned IPs** - Xem danh sách IPs bị ban
+- **Test Filter** - Test regex filters với log files
+
+#### Logrotate
+- **Setup WordPress Logrotate** - Rotate Nginx và site logs
+- **Setup PHP-FPM Logrotate** - Rotate PHP-FPM logs
+- **Setup MySQL Logrotate** - Rotate MySQL/MariaDB logs
+- **Create Custom Config** - Tạo logrotate config tùy chỉnh
+- **Force Rotate** - Force rotate logs ngay lập tức
+- **Clean Old Logs** - Xóa logs cũ hơn N ngày
+- **Show Disk Usage** - Thống kê dung lượng logs
+- **Test Configuration** - Test logrotate config
+
 ### 📊 Monitoring
 - Giám sát tài nguyên hệ thống (CPU, RAM, Disk)
 - Trạng thái dịch vụ (Nginx, PHP-FPM, MySQL)
@@ -146,7 +181,23 @@ Công cụ quản lý nhiều WordPress sites trên VPS với kiến trúc bảo
 
 ## 🔧 Cài đặt
 
-### 1. Cài đặt các gói cần thiết
+### Cài đặt nhanh (Khuyến nghị)
+
+Cài đặt tự động với một dòng lệnh:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yourusername/minhminhscript/main/install.sh | sudo bash
+```
+
+Hoặc với wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/yourusername/minhminhscript/main/install.sh | sudo bash
+```
+
+### Cài đặt thủ công
+
+#### 1. Cài đặt các gói cần thiết
 
 ```bash
 # Update hệ thống
