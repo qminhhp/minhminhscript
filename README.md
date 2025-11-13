@@ -42,6 +42,54 @@ Công cụ quản lý nhiều WordPress sites trên VPS với kiến trúc bảo
 - Redis support
 - Memcached support
 - Trạng thái cache
+- Hỗ trợ 12+ cache plugins phổ biến (WP Rocket, W3TC, WP Super Cache, v.v.)
+
+### 🎯 WordPress Advanced Features
+#### Bảo trì & Bảo mật
+- **Magic Login Link** - Tạo link đăng nhập tạm thời (không cần password)
+- **Maintenance Mode** - Bật/tắt chế độ bảo trì
+- **Disable XML-RPC** - Tắt XML-RPC endpoint (ngăn brute force)
+- **Change Salt Keys** - Đổi salt keys và logout tất cả users
+- **File Edit Control** - Bật/tắt chỉnh sửa file trong admin
+- **Scan Base64 Malware** - Quét mã độc base64 trong code
+- **Update Site URL** - Cập nhật home và siteurl (migration)
+
+#### Tối ưu hóa hiệu suất
+- **Optimize Heartbeat API** - Giảm tần suất Heartbeat (giảm CPU load)
+- **Clean Transients** - Xóa transients cũ và expired
+- **Optimize Database** - Tối ưu database tables (OPTIMIZE TABLE)
+- **Clean Post Revisions** - Xóa revisions cũ, giữ N revisions mới nhất
+- **Disable Emojis** - Tắt emoji scripts (giảm HTTP requests)
+- **Disable Embeds** - Tắt oEmbed functionality
+- **Limit Post Revisions** - Giới hạn số revisions lưu trữ
+- **Unix Socket DB** - Dùng Unix socket thay vì TCP (nhanh hơn)
+- **Memory Limit** - Tăng WP_MEMORY_LIMIT
+- **Flush Rewrite Rules** - Reset permalinks
+
+#### Quản lý Database
+- **Check Autoload** - Kiểm tra autoload data size (tối ưu tốc độ)
+- **Search & Replace** - Tìm và thay thế trong database (migration)
+- **Change DB Prefix** - Đổi table prefix (bảo mật)
+- **Delete Spam Comments** - Xóa spam comments hàng loạt
+- **Optimize Database** - Tối ưu và dọn dẹp database
+
+#### Quản lý hình ảnh
+- **Optimize Images** - Tối ưu JPG/PNG (jpegoptim, pngquant)
+- **Optimize All Sites** - Tối ưu hình ảnh tất cả sites
+- **Regenerate Thumbnails** - Tạo lại thumbnails với WP-CLI
+- **Image Statistics** - Thống kê số lượng và dung lượng hình ảnh
+
+#### Công cụ phát triển
+- **WordPress Health Check** - Kiểm tra sức khỏe WP toàn diện
+- **Hook Speed Profiling** - Phân tích hiệu suất hooks và plugins
+- **WP Debug** - Bật/tắt WP_DEBUG mode
+- **Magic Login Link** - Truy cập admin nhanh
+
+#### Cập nhật hàng loạt
+- **Update WordPress Core** - Cập nhật WordPress core
+- **Update All Plugins** - Cập nhật tất cả plugins
+- **Update All Themes** - Cập nhật tất cả themes
+- **Update All Sites** - Cập nhật tất cả sites trên VPS
 
 ### 📊 Monitoring
 - Giám sát tài nguyên hệ thống (CPU, RAM, Disk)

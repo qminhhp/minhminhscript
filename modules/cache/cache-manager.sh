@@ -9,6 +9,11 @@ source "${SCRIPT_DIR}/config/default.conf"
 clear_site_cache() {
     local domain=$1
 
+    if ! command_exists wp; then
+        print_error "WP-CLI chưa được cài đặt"
+        return 1
+    fi
+
     source "${MODULES_DIR}/site/site-manager.sh"
     if ! site_exists "$domain"; then
         print_error "Site không tồn tại: $domain"
@@ -18,27 +23,140 @@ clear_site_cache() {
     local site_info=$(get_site_info "$domain")
     IFS='|' read -r _ site_name site_user _ _ site_root _ <<< "$site_info"
 
+    if [[ ! -f "${site_root}/wp-load.php" ]]; then
+        print_error "Không tìm thấy WordPress tại: $site_root"
+        return 1
+    fi
+
     print_info "Đang xóa cache cho site: $domain"
 
-    # Clear WordPress object cache
-    if [[ -f "${site_root}/wp-content/object-cache.php" ]]; then
-        print_info "Xóa object cache..."
-        rm -f "${site_root}/wp-content/object-cache.php"
-        print_success "Đã xóa object cache"
-    fi
-
-    # Clear WordPress cache directory
-    if [[ -d "${site_root}/wp-content/cache" ]]; then
-        print_info "Xóa cache directory..."
-        rm -rf "${site_root}/wp-content/cache"/*
-        print_success "Đã xóa cache directory"
-    fi
+    # Get active plugins list
+    local plugins_active=$(wp plugin list --fields=name --status=active --path="$site_root" --allow-root 2>/dev/null | sed '1d')
 
     # Clear OPcache
-    if command_exists php; then
-        print_info "Xóa OPcache..."
-        echo "<?php opcache_reset(); echo 'OPcache cleared'; ?>" | php
-        print_success "Đã xóa OPcache"
+    print_info "Xóa OpCache..."
+    wp eval 'opcache_reset();' --path="$site_root" --allow-root 2>/dev/null
+    print_success "✓ OpCache"
+
+    # Clear WP object cache
+    print_info "Xóa WP Object Cache..."
+    wp cache flush --path="$site_root" --allow-root 2>/dev/null
+    print_success "✓ WP Object Cache"
+
+    # Clear Redis if available
+    if [[ -f /etc/redis/redis.conf ]] && command_exists redis-cli; then
+        if [ "$(redis-cli ping 2>/dev/null)" = "PONG" ]; then
+            print_info "Xóa Redis Cache..."
+            echo "flushall" | redis-cli >/dev/null 2>&1
+            print_success "✓ Redis Cache"
+        fi
+    fi
+
+    # Clear plugin-specific caches
+    local cache_cleared=false
+
+    # WP Rocket
+    if echo "$plugins_active" | grep -q 'wp-rocket'; then
+        print_info "Xóa WP Rocket cache..."
+        wp eval 'rocket_clean_domain();' --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ WP Rocket"
+        cache_cleared=true
+    fi
+
+    # W3 Total Cache
+    if echo "$plugins_active" | grep -q 'w3-total-cache'; then
+        print_info "Xóa W3 Total Cache..."
+        wp eval 'w3tc_pgcache_flush();' --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ W3 Total Cache"
+        cache_cleared=true
+    fi
+
+    # WP Super Cache
+    if echo "$plugins_active" | grep -q 'wp-super-cache'; then
+        print_info "Xóa WP Super Cache..."
+        wp eval 'global $file_prefix, $supercachedir;if ( empty( $supercachedir ) && function_exists( "get_supercache_dir" ) ) {$supercachedir = get_supercache_dir();}wp_cache_clean_cache( $file_prefix );' --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ WP Super Cache"
+        cache_cleared=true
+    fi
+
+    # WP Fastest Cache
+    if echo "$plugins_active" | grep -q 'wp-fastest-cache'; then
+        print_info "Xóa WP Fastest Cache..."
+        wp fastest-cache clear all --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ WP Fastest Cache"
+        cache_cleared=true
+    fi
+
+    # Cache Enabler
+    if echo "$plugins_active" | grep -q 'cache-enabler'; then
+        print_info "Xóa Cache Enabler..."
+        wp eval 'Cache_Enabler::clear_total_cache();' --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ Cache Enabler"
+        cache_cleared=true
+    fi
+
+    # Autoptimize
+    if echo "$plugins_active" | grep -q 'autoptimize'; then
+        print_info "Xóa Autoptimize cache..."
+        wp eval 'autoptimizeCache::clearall();' --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ Autoptimize"
+        cache_cleared=true
+    fi
+
+    # Swift Performance
+    if echo "$plugins_active" | grep -q 'swift-performance'; then
+        print_info "Xóa Swift Performance cache..."
+        wp sp_clear_all_cache --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ Swift Performance"
+        cache_cleared=true
+    fi
+
+    # Flying Press
+    if echo "$plugins_active" | grep -q 'flying-press'; then
+        print_info "Xóa Flying Press cache..."
+        wp eval 'FlyingPress\Purge::purge_cached_pages();' --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ Flying Press"
+        cache_cleared=true
+    fi
+
+    # WP Optimize
+    if echo "$plugins_active" | grep -q 'wp-optimize'; then
+        print_info "Xóa WP Optimize cache..."
+        wp eval '$wpoptimize_cache_commands = new WP_Optimize_Cache_Commands(); $wpoptimize_cache_commands->purge_page_cache();' --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ WP Optimize"
+        cache_cleared=true
+    fi
+
+    # Breeze
+    if echo "$plugins_active" | grep -q 'breeze'; then
+        print_info "Xóa Breeze cache..."
+        wp eval "do_action('breeze_clear_all_cache');" --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ Breeze"
+        cache_cleared=true
+    fi
+
+    # FlyingProxy
+    if echo "$plugins_active" | grep -q 'flyingproxy'; then
+        print_info "Xóa FlyingProxy cache..."
+        wp eval "FlyingProxy\Purge::invalidate();" --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ FlyingProxy"
+        cache_cleared=true
+    fi
+
+    # WP Performance
+    if echo "$plugins_active" | grep -q 'wp-performance'; then
+        print_info "Xóa WP Performance cache..."
+        wp wpp flush --allow-root --path="$site_root" 2>/dev/null
+        print_success "✓ WP Performance"
+        cache_cleared=true
+    fi
+
+    # Clear Nginx FastCGI cache if exists
+    local cache_dir="/var/cache/nginx/${site_name}"
+    if [[ -d "$cache_dir" ]]; then
+        print_info "Xóa Nginx FastCGI cache..."
+        rm -rf "${cache_dir}"/*
+        print_success "✓ Nginx FastCGI Cache"
     fi
 
     # Restart PHP-FPM pool
