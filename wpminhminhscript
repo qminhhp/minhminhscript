@@ -23,6 +23,7 @@ load_modules() {
     source "${MODULES_DIR}/cache/cache-manager.sh"
     source "${MODULES_DIR}/monitor/monitor-manager.sh"
     source "${MODULES_DIR}/wordpress/wordpress-menu.sh"
+    source "${MODULES_DIR}/domain/domain-menu.sh"
 }
 
 # Main menu
@@ -35,8 +36,9 @@ show_main_menu() {
     echo "  3. Quản lý Cache"
     echo "  4. Backup & Restore"
     echo "  5. WordPress Nâng Cao"
-    echo "  6. Giám sát Hệ thống"
-    echo "  7. Cài đặt & Cấu hình"
+    echo "  6. Quản lý Domains"
+    echo "  7. Giám sát Hệ thống"
+    echo "  8. Cài đặt & Cấu hình"
     echo "  0. Thoát"
     echo ""
     show_footer
@@ -442,8 +444,9 @@ main() {
             3) show_cache_menu ;;
             4) show_backup_menu ;;
             5) wordpress_advanced_menu ;;
-            6) show_monitoring_menu ;;
-            7) show_settings_menu ;;
+            6) domain_management_menu ;;
+            7) show_monitoring_menu ;;
+            8) show_settings_menu ;;
             0)
                 print_info "Tạm biệt!"
                 exit 0

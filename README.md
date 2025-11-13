@@ -91,6 +91,39 @@ Công cụ quản lý nhiều WordPress sites trên VPS với kiến trúc bảo
 - **Update All Themes** - Cập nhật tất cả themes
 - **Update All Sites** - Cập nhật tất cả sites trên VPS
 
+### 🌐 Domain & DNS Management
+#### Domain Aliases
+- **Add Domain Alias** - Point nhiều domains đến cùng một site
+- **Remove Domain Alias** - Xóa domain alias
+- **List Domain Aliases** - Liệt kê tất cả aliases của domain
+
+#### Domain Redirects
+- **Create Domain Redirect** - Tạo redirect 301/302 giữa domains
+- **Remove Domain Redirect** - Xóa domain redirect
+- **Force WWW Redirect** - Redirect non-WWW sang WWW
+- **Force non-WWW Redirect** - Redirect WWW sang non-WWW
+- **List All Redirects** - Danh sách tất cả redirects đang hoạt động
+
+#### Subdomain Management
+- **Create Subdomain Site** - Tạo subdomain như WordPress site độc lập (riêng PHP-FPM pool, database, user)
+- **Create Subdomain Alias** - Tạo subdomain dùng chung PHP-FPM pool với parent
+- **Create Wildcard Subdomain** - Cấu hình wildcard subdomain (*.domain.com)
+- **Remove Subdomain** - Xóa subdomain
+- **Remove Wildcard Subdomain** - Xóa wildcard config
+- **List Subdomains** - Liệt kê tất cả subdomains của domain
+
+#### Cloudflare Integration
+- **Setup Cloudflare API** - Cấu hình API token và Zone ID
+- **Get Zone ID** - Lấy Zone ID từ domain name
+- **Add DNS Record** - Thêm A record (proxied/DNS only)
+- **List DNS Records** - Liệt kê tất cả DNS records
+- **Delete DNS Record** - Xóa DNS record theo ID
+- **Purge Cache** - Xóa Cloudflare cache (all/URLs)
+- **Get SSL Status** - Kiểm tra SSL mode hiện tại
+- **Set SSL Mode** - Đặt SSL mode (off/flexible/full/strict)
+- **Enable Development Mode** - Bật dev mode (bypass cache 3h)
+- **Check Cloudflare Status** - Kiểm tra trạng thái API config
+
 ### 📊 Monitoring
 - Giám sát tài nguyên hệ thống (CPU, RAM, Disk)
 - Trạng thái dịch vụ (Nginx, PHP-FPM, MySQL)
