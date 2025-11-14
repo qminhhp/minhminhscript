@@ -17,6 +17,9 @@ INSTALL_DIR="/opt/wpminhminhscript"
 GITHUB_REPO="https://github.com/qminhhp/minhminhscript.git"
 GITHUB_BRANCH="claude/vps-wordpress-management-script-011CV63HHAiT1yQs5Zo7Lx54"
 
+# Auto install stack flag
+AUTO_INSTALL_STACK="${AUTO_INSTALL:-no}"
+
 # Print functions
 print_info() {
     echo -e "${YELLOW}[INFO]${NC} $1"
@@ -94,6 +97,8 @@ install_script() {
     # Remove old installation if exists
     if [[ -d "$INSTALL_DIR" ]]; then
         print_info "Phát hiện phiên bản cũ, đang xóa..."
+        # Change to safe directory before removing
+        cd /root || cd /tmp
         rm -rf "$INSTALL_DIR"
     fi
 
@@ -140,6 +145,13 @@ install_wpcli() {
         return 0
     fi
 
+    # Check if PHP is installed first
+    if ! command -v php &> /dev/null; then
+        print_warning "PHP chưa được cài đặt - bỏ qua cài WP-CLI"
+        print_info "WP-CLI sẽ được cài tự động khi bạn chạy wpminhminhscript lần đầu"
+        return 0
+    fi
+
     print_info "Đang cài đặt WP-CLI..."
 
     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
@@ -153,6 +165,194 @@ install_wpcli() {
         print_error "Lỗi khi cài đặt WP-CLI"
         return 1
     fi
+}
+
+# Install Nginx
+install_nginx() {
+    if command -v nginx &> /dev/null; then
+        print_info "Nginx đã được cài đặt"
+        return 0
+    fi
+
+    print_info "Đang cài đặt Nginx..."
+
+    if [[ "$OS_FAMILY" == "rhel" ]]; then
+        dnf install -y nginx
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        apt-get install -y nginx
+    fi
+
+    # Enable and start Nginx
+    systemctl enable nginx
+    systemctl start nginx
+
+    if systemctl is-active --quiet nginx; then
+        print_success "Nginx đã được cài đặt và khởi động"
+    else
+        print_error "Lỗi khi khởi động Nginx"
+        return 1
+    fi
+}
+
+# Install PHP and extensions
+install_php() {
+    if command -v php &> /dev/null; then
+        print_info "PHP đã được cài đặt ($(php -v | head -n1))"
+        return 0
+    fi
+
+    print_info "Đang cài đặt PHP và các extensions..."
+
+    if [[ "$OS_FAMILY" == "rhel" ]]; then
+        # Install PHP with common extensions
+        # Note: php-xmlrpc is deprecated on RHEL 9, excluded
+        dnf install -y php php-fpm php-mysqlnd php-gd php-mbstring \
+                       php-xml php-json php-curl php-zip php-intl \
+                       php-opcache php-soap php-bcmath
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        apt-get install -y php php-fpm php-mysql php-gd php-mbstring \
+                           php-xml php-curl php-zip php-intl \
+                           php-opcache php-soap php-xmlrpc php-bcmath
+    fi
+
+    # Enable and start PHP-FPM
+    systemctl enable php-fpm
+    systemctl start php-fpm
+
+    if command -v php &> /dev/null; then
+        print_success "PHP đã được cài đặt: $(php -v | head -n1)"
+
+        # Now install WP-CLI since PHP is available
+        install_wpcli
+    else
+        print_error "Lỗi khi cài đặt PHP"
+        return 1
+    fi
+}
+
+# Install MariaDB
+install_mariadb() {
+    if command -v mysql &> /dev/null || command -v mariadb &> /dev/null; then
+        print_info "MariaDB/MySQL đã được cài đặt"
+        return 0
+    fi
+
+    print_info "Đang cài đặt MariaDB..."
+
+    if [[ "$OS_FAMILY" == "rhel" ]]; then
+        dnf install -y mariadb-server
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        apt-get install -y mariadb-server
+    fi
+
+    # Enable and start MariaDB
+    systemctl enable mariadb
+    systemctl start mariadb
+
+    if systemctl is-active --quiet mariadb; then
+        print_success "MariaDB đã được cài đặt và khởi động"
+        echo ""
+        print_warning "QUAN TRỌNG: Chạy lệnh sau để bảo mật MariaDB:"
+        echo "  mysql_secure_installation"
+        echo ""
+    else
+        print_error "Lỗi khi khởi động MariaDB"
+        return 1
+    fi
+}
+
+# Install Certbot for SSL
+install_certbot() {
+    if command -v certbot &> /dev/null; then
+        print_info "Certbot đã được cài đặt"
+        return 0
+    fi
+
+    print_info "Đang cài đặt Certbot (Let's Encrypt SSL)..."
+
+    if [[ "$OS_FAMILY" == "rhel" ]]; then
+        dnf install -y certbot python3-certbot-nginx
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        apt-get install -y certbot python3-certbot-nginx
+    fi
+
+    if command -v certbot &> /dev/null; then
+        print_success "Certbot đã được cài đặt"
+    else
+        print_error "Lỗi khi cài đặt Certbot"
+        return 1
+    fi
+}
+
+# Install Docker for n8n
+install_docker() {
+    if command -v docker &> /dev/null; then
+        print_info "Docker đã được cài đặt"
+        return 0
+    fi
+
+    print_info "Đang cài đặt Docker..."
+
+    if [[ "$OS_FAMILY" == "rhel" ]]; then
+        # Remove old versions
+        dnf remove -y docker docker-client docker-client-latest \
+                      docker-common docker-latest docker-latest-logrotate \
+                      docker-logrotate docker-engine podman runc
+
+        # Install Docker CE
+        dnf install -y dnf-plugins-core
+        dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        # Remove old versions
+        apt-get remove -y docker docker-engine docker.io containerd runc
+
+        # Install Docker CE
+        apt-get update
+        apt-get install -y ca-certificates curl gnupg
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/$OS_ID/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        chmod a+r /etc/apt/keyrings/docker.gpg
+
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS_ID \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+        apt-get update
+        apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    fi
+
+    # Enable and start Docker
+    systemctl enable docker
+    systemctl start docker
+
+    if systemctl is-active --quiet docker; then
+        print_success "Docker đã được cài đặt và khởi động"
+    else
+        print_error "Lỗi khi khởi động Docker"
+        return 1
+    fi
+}
+
+# Install full LEMP stack
+install_full_stack() {
+    echo ""
+    echo "============================================"
+    echo "  Đang cài đặt LEMP Stack + Docker..."
+    echo "============================================"
+    echo ""
+
+    install_nginx
+    install_php
+    install_mariadb
+    install_certbot
+    install_docker
+
+    echo ""
+    print_success "Hoàn thành cài đặt stack!"
+    echo ""
 }
 
 # Show completion message
@@ -205,6 +405,107 @@ show_completion() {
     echo ""
 }
 
+# Ask user if they want to install stack
+ask_install_stack() {
+    # Check if auto install is enabled
+    if [[ "$AUTO_INSTALL_STACK" == "yes" ]] || [[ "$AUTO_INSTALL_STACK" == "y" ]] || [[ "$AUTO_INSTALL_STACK" == "1" ]]; then
+        print_info "Chế độ tự động: Đang cài đặt LEMP Stack + Docker..."
+        install_full_stack
+
+        echo ""
+        print_success "Hoàn tất! Bạn có thể chạy script ngay:"
+        echo "  wpminhminhscript"
+        echo ""
+        print_warning "Đừng quên chạy để bảo mật MariaDB:"
+        echo "  mysql_secure_installation"
+        echo ""
+        return 0
+    fi
+
+    # Check if running in pipe (cannot read from terminal)
+    if ! [ -t 0 ]; then
+        print_warning "Phát hiện chạy qua pipe - bỏ qua cài stack tự động"
+        echo ""
+        print_info "Để tự động cài LEMP stack, sử dụng:"
+        echo "  curl -sL ... | AUTO_INSTALL=yes bash"
+        echo ""
+        echo "Hoặc download và chạy trực tiếp:"
+        echo "  curl -O https://raw.githubusercontent.com/.../install.sh"
+        echo "  bash install.sh"
+        echo ""
+        show_completion
+        return 0
+    fi
+
+    # Interactive mode
+    echo ""
+    echo "============================================"
+    echo -e "${YELLOW}Cài đặt LEMP Stack + Docker?${NC}"
+    echo "============================================"
+    echo ""
+    echo "Script sẽ cài đặt:"
+    echo "  • Nginx - Web server"
+    echo "  • PHP 8.x + PHP-FPM + Extensions"
+    echo "  • MariaDB - Database server"
+    echo "  • Certbot - Let's Encrypt SSL"
+    echo "  • Docker + Docker Compose - Cho n8n"
+    echo ""
+    echo -e "${YELLOW}Bạn có muốn cài đặt stack ngay bây giờ? (y/n)${NC}"
+    read -p "Lựa chọn [y/n]: " choice
+
+    case "$choice" in
+        y|Y|yes|Yes|YES)
+            install_full_stack
+
+            echo ""
+            print_success "Hoàn tất! Bạn có thể chạy script ngay:"
+            echo "  wpminhminhscript"
+            echo ""
+            print_warning "Đừng quên chạy để bảo mật MariaDB:"
+            echo "  mysql_secure_installation"
+            echo ""
+            ;;
+        *)
+            show_completion
+            ;;
+    esac
+}
+
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -f|--full)
+                AUTO_INSTALL_STACK="yes"
+                shift
+                ;;
+            -h|--help)
+                echo "WP Minhminh Script - Auto Installer"
+                echo ""
+                echo "Usage: $0 [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  -f, --full    Tự động cài đặt LEMP stack + Docker"
+                echo "  -h, --help    Hiển thị trợ giúp này"
+                echo ""
+                echo "Examples:"
+                echo "  $0              # Chỉ cài script (interactive)"
+                echo "  $0 --full       # Cài script + LEMP stack tự động"
+                echo ""
+                echo "  # Qua pipe:"
+                echo "  curl -sL ... | bash               # Chỉ cài script"
+                echo "  curl -sL ... | AUTO_INSTALL=yes bash  # Cài script + stack"
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Run '$0 --help' for usage information"
+                exit 1
+                ;;
+        esac
+    done
+}
+
 # Main installation
 main() {
     echo "============================================"
@@ -223,8 +524,9 @@ main() {
     setup_directories
     install_wpcli
 
-    show_completion
+    ask_install_stack
 }
 
-# Run main
+# Parse arguments and run
+parse_args "$@"
 main
