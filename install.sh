@@ -45,6 +45,7 @@ check_os() {
         . /etc/os-release
         OS=$NAME
         VER=$VERSION_ID
+        OS_ID=$ID
     else
         print_error "Không thể xác định hệ điều hành"
         exit 1
@@ -52,20 +53,36 @@ check_os() {
 
     print_info "Hệ điều hành: $OS $VER"
 
-    if [[ "$OS" != "Ubuntu" ]] && [[ "$OS" != "Debian GNU/Linux" ]]; then
-        print_error "Script chỉ hỗ trợ Ubuntu và Debian"
-        exit 1
-    fi
+    # Determine OS family
+    case "$OS_ID" in
+        ubuntu|debian)
+            OS_FAMILY="debian"
+            PKG_MGR="apt-get"
+            ;;
+        almalinux|rocky|rhel|centos)
+            OS_FAMILY="rhel"
+            PKG_MGR="dnf"
+            print_info "Phát hiện RHEL-based OS"
+            ;;
+        *)
+            print_error "Hệ điều hành không được hỗ trợ: $OS"
+            print_info "Script hỗ trợ: Ubuntu, Debian, AlmaLinux, Rocky Linux, RHEL, CentOS"
+            exit 1
+            ;;
+    esac
 }
 
 # Install dependencies
 install_dependencies() {
     print_info "Đang cài đặt các gói phụ thuộc..."
 
-    apt-get update -qq
-
-    # Basic tools
-    apt-get install -y curl wget git unzip sudo
+    if [[ "$OS_FAMILY" == "debian" ]]; then
+        apt-get update -qq
+        apt-get install -y curl wget git unzip sudo
+    elif [[ "$OS_FAMILY" == "rhel" ]]; then
+        dnf check-update -q || true
+        dnf install -y curl wget git unzip sudo
+    fi
 
     print_success "Đã cài đặt các gói phụ thuộc"
 }
@@ -147,13 +164,44 @@ show_completion() {
     echo ""
     echo "WP Minhminh Script đã được cài đặt tại: $INSTALL_DIR"
     echo ""
-    echo "Để bắt đầu sử dụng, chạy lệnh:"
-    echo "  wpminhminhscript"
+
+    # Show next steps based on OS
+    if [[ "$OS_FAMILY" == "rhel" ]]; then
+        echo -e "${YELLOW}BƯỚC TIẾP THEO (AlmaLinux/RHEL):${NC}"
+        echo ""
+        echo "1. Cài đặt Nginx:"
+        echo "   dnf install -y nginx"
+        echo "   systemctl enable --now nginx"
+        echo ""
+        echo "2. Cài đặt PHP 8.1 (hoặc 8.2, 8.3):"
+        echo "   dnf install -y php php-fpm php-mysqlnd php-gd php-mbstring \\"
+        echo "                  php-xml php-json php-curl php-zip php-intl"
+        echo "   systemctl enable --now php-fpm"
+        echo ""
+        echo "3. Cài đặt MariaDB:"
+        echo "   dnf install -y mariadb-server"
+        echo "   systemctl enable --now mariadb"
+        echo "   mysql_secure_installation"
+        echo ""
+        echo "4. Cài đặt Certbot (SSL):"
+        echo "   dnf install -y certbot python3-certbot-nginx"
+        echo ""
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        echo -e "${YELLOW}BƯỚC TIẾP THEO:${NC}"
+        echo ""
+        echo "Nếu chưa cài stack, chạy:"
+        echo "  apt install -y nginx mariadb-server php-fpm php-mysql \\"
+        echo "                 certbot python3-certbot-nginx"
+        echo ""
+    fi
+
+    echo "5. Chạy script:"
+    echo "   wpminhminhscript"
     echo ""
     echo "Hoặc:"
-    echo "  cd $INSTALL_DIR && ./wpminhminhscript"
+    echo "   cd $INSTALL_DIR && ./wpminhminhscript"
     echo ""
-    echo "Documentation: $INSTALL_DIR/README.md"
+    echo "📖 Documentation: $INSTALL_DIR/README.md"
     echo ""
 }
 
