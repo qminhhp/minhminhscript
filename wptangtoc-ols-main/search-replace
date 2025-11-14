@@ -1,7 +1,0 @@
-#!/bin/bash
-files=$(find . -type f)
-for file in ${files[@]};do
-echo "update $file"
-sed -i 's:$(ls -A /etc/wptt/vhost|sort -uV):$(ls -A /etc/wptt/vhost|sort -uV):g' $file
-done
-
