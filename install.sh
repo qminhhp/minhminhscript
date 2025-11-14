@@ -205,9 +205,10 @@ install_php() {
 
     if [[ "$OS_FAMILY" == "rhel" ]]; then
         # Install PHP with common extensions
+        # Note: php-xmlrpc is deprecated on RHEL 9, excluded
         dnf install -y php php-fpm php-mysqlnd php-gd php-mbstring \
                        php-xml php-json php-curl php-zip php-intl \
-                       php-opcache php-soap php-xmlrpc php-bcmath
+                       php-opcache php-soap php-bcmath
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         apt-get install -y php php-fpm php-mysql php-gd php-mbstring \
                            php-xml php-curl php-zip php-intl \
