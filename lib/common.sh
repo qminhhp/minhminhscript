@@ -19,13 +19,97 @@ CONFIG_DIR="${SCRIPT_DIR}/config"
 TEMPLATES_DIR="${SCRIPT_DIR}/templates"
 LOGS_DIR="${SCRIPT_DIR}/logs"
 
-# System paths
-NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
-NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
-PHP_FPM_POOL_DIR="/etc/php/8.3/fpm/pool.d"
-PHP_SOCKET_DIR="/run/php"
-WEB_ROOT="/var/www"
-BACKUP_DIR="/var/backups/wordpress"
+# Detect OS
+detect_os() {
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        OS_ID=$ID
+        OS_VERSION=$VERSION_ID
+    else
+        OS_ID="unknown"
+    fi
+
+    case "$OS_ID" in
+        ubuntu|debian)
+            OS_FAMILY="debian"
+            ;;
+        almalinux|rocky|rhel|centos)
+            OS_FAMILY="rhel"
+            ;;
+        *)
+            OS_FAMILY="unknown"
+            ;;
+    esac
+}
+
+# Detect PHP version
+detect_php_version() {
+    if command -v php >/dev/null 2>&1; then
+        PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+    else
+        PHP_VERSION="8.1"
+    fi
+}
+
+# Detect web server user
+detect_web_user() {
+    if id www-data >/dev/null 2>&1; then
+        WEB_USER="www-data"
+        WEB_GROUP="www-data"
+    elif id nginx >/dev/null 2>&1; then
+        WEB_USER="nginx"
+        WEB_GROUP="nginx"
+    elif id apache >/dev/null 2>&1; then
+        WEB_USER="apache"
+        WEB_GROUP="apache"
+    else
+        WEB_USER="nginx"
+        WEB_GROUP="nginx"
+    fi
+}
+
+# Initialize OS-specific paths
+init_os_paths() {
+    detect_os
+    detect_php_version
+    detect_web_user
+
+    # Set paths based on OS family
+    if [[ "$OS_FAMILY" == "rhel" ]]; then
+        # RHEL/AlmaLinux/Rocky paths
+        NGINX_CONF_DIR="/etc/nginx/conf.d"
+        NGINX_SITES_AVAILABLE="/etc/nginx/conf.d"
+        NGINX_SITES_ENABLED="/etc/nginx/conf.d"
+        PHP_FPM_POOL_DIR="/etc/php-fpm.d"
+        PHP_SOCKET_DIR="/run/php-fpm"
+        PHP_FPM_SERVICE="php-fpm"
+        NGINX_SERVICE="nginx"
+
+    elif [[ "$OS_FAMILY" == "debian" ]]; then
+        # Debian/Ubuntu paths
+        NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
+        NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
+        PHP_FPM_POOL_DIR="/etc/php/${PHP_VERSION}/fpm/pool.d"
+        PHP_SOCKET_DIR="/run/php"
+        PHP_FPM_SERVICE="php${PHP_VERSION}-fpm"
+        NGINX_SERVICE="nginx"
+    else
+        # Fallback to Debian-like
+        NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
+        NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
+        PHP_FPM_POOL_DIR="/etc/php/fpm/pool.d"
+        PHP_SOCKET_DIR="/run/php"
+        PHP_FPM_SERVICE="php-fpm"
+        NGINX_SERVICE="nginx"
+    fi
+
+    # Common paths
+    WEB_ROOT="/var/www"
+    BACKUP_DIR="/var/backups/wpminhminhscript"
+}
+
+# Call init on load
+init_os_paths
 
 # Log file
 LOG_FILE="${LOGS_DIR}/wpminhminhscript.log"
@@ -85,11 +169,11 @@ check_requirements() {
         missing_packages+=("nginx")
     fi
 
-    if ! command_exists php-fpm8.3; then
-        missing_packages+=("php8.3-fpm")
+    if ! command_exists php; then
+        missing_packages+=("php php-fpm")
     fi
 
-    if ! command_exists mysql; then
+    if ! command_exists mysql && ! command_exists mariadb; then
         missing_packages+=("mysql-server or mariadb-server")
     fi
 
@@ -165,15 +249,14 @@ reload_nginx() {
 
 # Reload PHP-FPM
 reload_phpfpm() {
-    local php_version=${1:-8.3}
-    systemctl reload "php${php_version}-fpm"
+    systemctl reload "${PHP_FPM_SERVICE}"
     if [[ $? -eq 0 ]]; then
-        print_success "Đã reload PHP-FPM ${php_version} thành công"
-        log_message "INFO" "PHP-FPM ${php_version} reloaded successfully"
+        print_success "Đã reload PHP-FPM thành công"
+        log_message "INFO" "PHP-FPM reloaded successfully"
         return 0
     else
-        print_error "Không thể reload PHP-FPM ${php_version}"
-        log_message "ERROR" "Failed to reload PHP-FPM ${php_version}"
+        print_error "Không thể reload PHP-FPM"
+        log_message "ERROR" "Failed to reload PHP-FPM"
         return 1
     fi
 }

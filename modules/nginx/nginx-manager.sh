@@ -12,7 +12,6 @@ create_nginx_vhost() {
     local site_root=$3
 
     local vhost_file="${NGINX_SITES_AVAILABLE}/${site_name}.conf"
-    local vhost_link="${NGINX_SITES_ENABLED}/${site_name}.conf"
     local socket_path="${PHP_SOCKET_DIR}/${site_name}.sock"
     local template_file="${TEMPLATES_DIR}/nginx/wordpress.conf"
 
@@ -31,8 +30,11 @@ create_nginx_vhost() {
     sed -i "s|{{SOCKET_PATH}}|${socket_path}|g" "$vhost_file"
     sed -i "s|{{CLIENT_MAX_BODY_SIZE}}|${NGINX_CLIENT_MAX_BODY_SIZE}|g" "$vhost_file"
 
-    # Enable site
-    ln -s "$vhost_file" "$vhost_link"
+    # Enable site (only for Debian-based systems with sites-enabled)
+    if [[ "$OS_FAMILY" == "debian" ]] && [[ "$NGINX_SITES_AVAILABLE" != "$NGINX_SITES_ENABLED" ]]; then
+        local vhost_link="${NGINX_SITES_ENABLED}/${site_name}.conf"
+        ln -s "$vhost_file" "$vhost_link"
+    fi
 
     # Test Nginx configuration
     if nginx -t >/dev/null 2>&1; then
@@ -43,7 +45,10 @@ create_nginx_vhost() {
     else
         print_error "Cấu hình Nginx không hợp lệ"
         nginx -t
-        rm -f "$vhost_file" "$vhost_link"
+        rm -f "$vhost_file"
+        if [[ "$OS_FAMILY" == "debian" ]]; then
+            rm -f "${NGINX_SITES_ENABLED}/${site_name}.conf"
+        fi
         return 1
     fi
 }
@@ -52,15 +57,17 @@ create_nginx_vhost() {
 remove_nginx_vhost() {
     local site_name=$1
     local vhost_file="${NGINX_SITES_AVAILABLE}/${site_name}.conf"
-    local vhost_link="${NGINX_SITES_ENABLED}/${site_name}.conf"
 
     if [[ ! -f "$vhost_file" ]]; then
         print_warning "Nginx vhost không tồn tại: $site_name"
         return 1
     fi
 
-    # Disable site
-    rm -f "$vhost_link"
+    # Remove symlink for Debian-based systems
+    if [[ "$OS_FAMILY" == "debian" ]] && [[ "$NGINX_SITES_AVAILABLE" != "$NGINX_SITES_ENABLED" ]]; then
+        local vhost_link="${NGINX_SITES_ENABLED}/${site_name}.conf"
+        rm -f "$vhost_link"
+    fi
 
     # Remove vhost file
     rm -f "$vhost_file"

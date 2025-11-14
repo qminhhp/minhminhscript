@@ -402,8 +402,10 @@ import_site_from_package() {
         useradd -m -s /bin/bash -d "/home/${new_site_user}" "$new_site_user"
     fi
 
-    # Add www-data to site user group
-    usermod -a -G "$new_site_user" www-data
+    # Add web server user to site user group
+    if id "$WEB_USER" >/dev/null 2>&1; then
+        usermod -a -G "$new_site_user" "$WEB_USER"
+    fi
 
     # Extract files
     print_info "Giải nén files..."

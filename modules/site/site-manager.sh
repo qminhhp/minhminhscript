@@ -164,8 +164,10 @@ add_site() {
         print_warning "User đã tồn tại: $site_user"
     fi
 
-    # Add nginx to site user group (for reading static files)
-    usermod -a -G "$site_user" www-data
+    # Add web server user to site user group (for reading static files)
+    if id "$WEB_USER" >/dev/null 2>&1; then
+        usermod -a -G "$site_user" "$WEB_USER"
+    fi
 
     # Step 2: Create site directory
     print_info "Bước 2: Tạo thư mục site..."

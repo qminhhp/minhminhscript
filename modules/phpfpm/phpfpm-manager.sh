@@ -41,14 +41,14 @@ create_phpfpm_pool() {
     ensure_directory "/var/log/php-fpm"
 
     # Test PHP-FPM configuration
-    if php-fpm${PHP_VERSION} -t >/dev/null 2>&1; then
-        reload_phpfpm "$PHP_VERSION"
+    if ${PHP_FPM_SERVICE} -t >/dev/null 2>&1; then
+        reload_phpfpm
         print_success "Đã tạo PHP-FPM pool: $site_name"
         log_message "INFO" "Created PHP-FPM pool: $site_name"
         return 0
     else
         print_error "Cấu hình PHP-FPM không hợp lệ"
-        php-fpm${PHP_VERSION} -t
+        ${PHP_FPM_SERVICE} -t
         rm -f "$pool_file"
         return 1
     fi
@@ -65,7 +65,7 @@ remove_phpfpm_pool() {
     fi
 
     rm -f "$pool_file"
-    reload_phpfpm "$PHP_VERSION"
+    reload_phpfpm
     print_success "Đã xóa PHP-FPM pool: $site_name"
     log_message "INFO" "Removed PHP-FPM pool: $site_name"
     return 0
@@ -125,7 +125,7 @@ restart_phpfpm_pool() {
         log_message "INFO" "Restarted PHP-FPM pool: $site_name"
     else
         print_warning "Pool không có process nào đang chạy"
-        reload_phpfpm "$PHP_VERSION"
+        reload_phpfpm
     fi
 
     return 0
@@ -183,8 +183,8 @@ update_pool_config() {
     esac
 
     # Test and reload
-    if php-fpm${PHP_VERSION} -t >/dev/null 2>&1; then
-        reload_phpfpm "$PHP_VERSION"
+    if ${PHP_FPM_SERVICE} -t >/dev/null 2>&1; then
+        reload_phpfpm
         print_success "Đã cập nhật cấu hình pool: $site_name"
         log_message "INFO" "Updated pool config: $site_name - $config_key=$config_value"
         return 0
