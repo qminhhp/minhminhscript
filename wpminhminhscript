@@ -25,6 +25,7 @@ load_modules() {
     source "${MODULES_DIR}/wordpress/wordpress-menu.sh"
     source "${MODULES_DIR}/domain/domain-menu.sh"
     source "${MODULES_DIR}/security/security-menu.sh"
+    source "${MODULES_DIR}/migration/migration-menu.sh"
 }
 
 # Main menu
@@ -40,7 +41,8 @@ show_main_menu() {
     echo "  6. Quản lý Domains"
     echo "  7. Bảo Mật (Firewall, Fail2ban, Logrotate)"
     echo "  8. Giám sát Hệ thống"
-    echo "  9. Cài đặt & Cấu hình"
+    echo "  9. Chuyển VPS & Sites (Migration)"
+    echo " 10. Cài đặt & Cấu hình"
     echo "  0. Thoát"
     echo ""
     show_footer
@@ -449,7 +451,8 @@ main() {
             6) domain_management_menu ;;
             7) security_management_menu ;;
             8) show_monitoring_menu ;;
-            9) show_settings_menu ;;
+            9) migration_management_menu ;;
+            10) show_settings_menu ;;
             0)
                 print_info "Tạm biệt!"
                 exit 0
@@ -478,17 +481,31 @@ if [[ $# -gt 0 ]]; then
         "backup-all-auto")
             auto_backup_all
             ;;
+        "import-site")
+            import_site_from_package "$2"
+            ;;
+        "export-site")
+            if [[ -n "$2" ]]; then
+                prepare_site_export "$2"
+            else
+                print_error "Cần chỉ định tên miền"
+                echo "Usage: wpminhminhscript export-site <domain>"
+                exit 1
+            fi
+            ;;
         "help")
             echo "WP Minhminh Script - WordPress VPS Management Tool"
             echo ""
-            echo "Usage: wpminhminhscript [command]"
+            echo "Usage: wpminhminhscript [command] [arguments]"
             echo ""
             echo "Commands:"
-            echo "  add-site          Thêm site mới"
-            echo "  remove-site       Xóa site"
-            echo "  list-sites        Danh sách sites"
-            echo "  backup-all-auto   Backup tất cả sites (cho cron)"
-            echo "  help              Hiển thị trợ giúp"
+            echo "  add-site                    Thêm site mới"
+            echo "  remove-site                 Xóa site"
+            echo "  list-sites                  Danh sách sites"
+            echo "  backup-all-auto             Backup tất cả sites (cho cron)"
+            echo "  import-site <path>          Import site từ migration package"
+            echo "  export-site <domain>        Export site thành migration package"
+            echo "  help                        Hiển thị trợ giúp"
             echo ""
             echo "Chạy không tham số để mở menu tương tác"
             ;;
