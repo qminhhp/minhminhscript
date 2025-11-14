@@ -26,6 +26,7 @@ load_modules() {
     source "${MODULES_DIR}/domain/domain-menu.sh"
     source "${MODULES_DIR}/security/security-menu.sh"
     source "${MODULES_DIR}/migration/migration-menu.sh"
+    source "${MODULES_DIR}/n8n/n8n-menu.sh"
 }
 
 # Main menu
@@ -43,6 +44,7 @@ show_main_menu() {
     echo "  8. Giám sát Hệ thống"
     echo "  9. Chuyển VPS & Sites (Migration)"
     echo " 10. Cài đặt & Cấu hình"
+    echo " 11. n8n Workflow Automation"
     echo "  0. Thoát"
     echo ""
     show_footer
@@ -453,6 +455,7 @@ main() {
             8) show_monitoring_menu ;;
             9) migration_management_menu ;;
             10) show_settings_menu ;;
+            11) n8n_management_menu ;;
             0)
                 print_info "Tạm biệt!"
                 exit 0

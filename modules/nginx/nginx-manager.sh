@@ -305,3 +305,65 @@ test_nginx_config() {
     show_footer
     pause
 }
+
+# Create Nginx vhost for n8n (reverse proxy)
+create_n8n_nginx_vhost() {
+    local domain=$1
+    local port=$2
+    local basic_auth_user=$3
+    local basic_auth_pass=$4
+
+    local vhost_file="${NGINX_SITES_AVAILABLE}/${domain}.conf"
+    local vhost_link="${NGINX_SITES_ENABLED}/${domain}.conf"
+    local template_file="${TEMPLATES_DIR}/nginx/n8n.conf"
+
+    if [[ -f "$vhost_file" ]]; then
+        print_warning "Nginx vhost đã tồn tại: $domain"
+        return 1
+    fi
+
+    # Create vhost from template
+    cp "$template_file" "$vhost_file"
+
+    # Replace variables
+    sed -i "s|{{DOMAIN}}|${domain}|g" "$vhost_file"
+    sed -i "s|{{PORT}}|${port}|g" "$vhost_file"
+
+    # Configure Basic Auth if provided
+    if [[ -n "$basic_auth_user" ]] && [[ -n "$basic_auth_pass" ]]; then
+        # Create htpasswd file
+        local auth_file="/etc/nginx/htpasswd/${domain}"
+        ensure_directory "/etc/nginx/htpasswd"
+
+        # Install apache2-utils if not present
+        if ! command_exists htpasswd; then
+            apt-get install -y apache2-utils >/dev/null 2>&1
+        fi
+
+        # Create password entry
+        htpasswd -cb "$auth_file" "$basic_auth_user" "$basic_auth_pass" >/dev/null 2>&1
+
+        # Replace placeholder with auth config
+        local auth_config="auth_basic \"n8n Authentication\";\n    auth_basic_user_file ${auth_file};"
+        sed -i "s|{{BASIC_AUTH_CONFIG}}|${auth_config}|g" "$vhost_file"
+    else
+        # Remove placeholder
+        sed -i "/{{BASIC_AUTH_CONFIG}}/d" "$vhost_file"
+    fi
+
+    # Enable site
+    ln -s "$vhost_file" "$vhost_link"
+
+    # Test Nginx configuration
+    if nginx -t >/dev/null 2>&1; then
+        reload_nginx
+        print_success "Đã tạo Nginx vhost cho n8n: $domain"
+        log_message "INFO" "Created n8n Nginx vhost: $domain"
+        return 0
+    else
+        print_error "Cấu hình Nginx không hợp lệ"
+        nginx -t
+        rm -f "$vhost_file" "$vhost_link"
+        return 1
+    fi
+}
