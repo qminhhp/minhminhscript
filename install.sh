@@ -94,6 +94,8 @@ install_script() {
     # Remove old installation if exists
     if [[ -d "$INSTALL_DIR" ]]; then
         print_info "Phát hiện phiên bản cũ, đang xóa..."
+        # Change to safe directory before removing
+        cd /root || cd /tmp
         rm -rf "$INSTALL_DIR"
     fi
 
