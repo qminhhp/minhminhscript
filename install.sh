@@ -140,6 +140,13 @@ install_wpcli() {
         return 0
     fi
 
+    # Check if PHP is installed first
+    if ! command -v php &> /dev/null; then
+        print_warning "PHP chưa được cài đặt - bỏ qua cài WP-CLI"
+        print_info "WP-CLI sẽ được cài tự động khi bạn chạy wpminhminhscript lần đầu"
+        return 0
+    fi
+
     print_info "Đang cài đặt WP-CLI..."
 
     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
