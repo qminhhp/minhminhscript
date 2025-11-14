@@ -33,6 +33,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
 # Check if running as root
 check_root() {
     if [[ $EUID -ne 0 ]]; then
