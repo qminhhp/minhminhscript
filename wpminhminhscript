@@ -33,11 +33,31 @@ load_modules() {
     source "${MODULES_DIR}/security/security-menu.sh"
     source "${MODULES_DIR}/migration/migration-menu.sh"
     source "${MODULES_DIR}/n8n/n8n-menu.sh"
+    source "${MODULES_DIR}/update/update-manager.sh"
+    source "${MODULES_DIR}/update/update-menu.sh"
 }
 
 # Main menu
 show_main_menu() {
     show_header
+
+    # Check for updates silently in background
+    local current_version=$(get_current_version)
+    local latest_version=$(get_latest_version 2>/dev/null)
+    local update_available=false
+
+    if [[ -n "$latest_version" ]] && version_gt "$current_version" "$latest_version" 2>/dev/null; then
+        update_available=true
+    fi
+
+    # Show version info
+    echo -e "${CYAN}WP Minhminh Script${NC} ${YELLOW}v${current_version}${NC}"
+
+    if [[ "$update_available" == "true" ]]; then
+        echo -e "${GREEN}🎉 Có phiên bản mới: v${latest_version}${NC} - Chọn ${YELLOW}[12]${NC} để cập nhật"
+    fi
+
+    echo ""
     echo -e "${CYAN}MENU CHÍNH${NC}"
     echo ""
     echo "  1. Quản lý Sites"
@@ -51,6 +71,13 @@ show_main_menu() {
     echo "  9. Chuyển VPS & Sites (Migration)"
     echo " 10. Cài đặt & Cấu hình"
     echo " 11. n8n Workflow Automation"
+
+    if [[ "$update_available" == "true" ]]; then
+        echo -e " ${GREEN}12. 🔄 Cập nhật Script${NC} ${YELLOW}(v${latest_version} có sẵn!)${NC}"
+    else
+        echo " 12. 🔄 Kiểm tra Cập nhật"
+    fi
+
     echo "  0. Thoát"
     echo ""
     show_footer
@@ -462,6 +489,7 @@ main() {
             9) migration_management_menu ;;
             10) show_settings_menu ;;
             11) n8n_management_menu ;;
+            12) show_update_menu ;;
             0)
                 print_info "Tạm biệt!"
                 exit 0
@@ -502,6 +530,15 @@ if [[ $# -gt 0 ]]; then
                 exit 1
             fi
             ;;
+        "update")
+            do_update "${2:-main}"
+            ;;
+        "check-update")
+            check_for_updates false
+            ;;
+        "version")
+            echo "WP Minhminh Script v$(get_current_version)"
+            ;;
         "help")
             echo "WP Minhminh Script - WordPress VPS Management Tool"
             echo ""
@@ -514,9 +551,18 @@ if [[ $# -gt 0 ]]; then
             echo "  backup-all-auto             Backup tất cả sites (cho cron)"
             echo "  import-site <path>          Import site từ migration package"
             echo "  export-site <domain>        Export site thành migration package"
+            echo "  update [branch]             Cập nhật script (mặc định: main)"
+            echo "  check-update                Kiểm tra phiên bản mới"
+            echo "  version                     Hiển thị phiên bản hiện tại"
             echo "  help                        Hiển thị trợ giúp"
             echo ""
-            echo "Chạy không tham số để mở menu tương tác"
+            echo "Examples:"
+            echo "  wpminhminhscript                    # Mở menu tương tác"
+            echo "  wpminhminhscript version            # Xem phiên bản"
+            echo "  wpminhminhscript check-update       # Kiểm tra update"
+            echo "  wpminhminhscript update             # Cập nhật lên phiên bản mới"
+            echo "  wpminhminhscript export-site abc.com # Export site"
+            echo ""
             ;;
         *)
             print_error "Lệnh không hợp lệ: $1"
