@@ -292,24 +292,45 @@ remove_site() {
 
     echo "Danh sách sites:"
     echo ""
+
+    # Build array of domains
+    declare -a domains=()
     local count=1
     while IFS='|' read -r domain site_name site_user db_name db_user site_root created_at; do
+        domains+=("$domain")
         echo "  $count. $domain ($site_name)"
         ((count++))
     done < "$SITES_DB"
 
     echo ""
-    read -p "Nhập tên miền cần xóa: " domain
-    domain=$(echo "$domain" | tr '[:upper:]' '[:lower:]' | sed 's/^www\.//')
+    read -p "Nhập số thứ tự hoặc tên miền cần xóa: " input
+    input=$(echo "$input" | tr '[:upper:]' '[:lower:]' | sed 's/^www\.//')
 
-    if [[ -z "$domain" ]]; then
-        print_error "Tên miền không được để trống"
+    if [[ -z "$input" ]]; then
+        print_error "Không được để trống"
         pause
         return 1
     fi
 
+    # Check if input is a number
+    local domain
+    if [[ "$input" =~ ^[0-9]+$ ]]; then
+        # Input is a number - get domain from array
+        local index=$((input - 1))
+        if [[ $index -ge 0 ]] && [[ $index -lt ${#domains[@]} ]]; then
+            domain="${domains[$index]}"
+        else
+            print_error "Số thứ tự không hợp lệ"
+            pause
+            return 1
+        fi
+    else
+        # Input is domain name
+        domain="$input"
+    fi
+
     if ! site_exists "$domain"; then
-        print_error "Site không tồn tại"
+        print_error "Site không tồn tại: $domain"
         pause
         return 1
     fi
@@ -390,17 +411,59 @@ remove_site() {
 
 # Show site info
 show_site_info() {
-    read -p "Nhập tên miền: " domain
-    domain=$(echo "$domain" | tr '[:upper:]' '[:lower:]' | sed 's/^www\.//')
+    show_header
+    echo -e "${CYAN}THÔNG TIN SITE${NC}"
+    echo ""
 
-    if [[ -z "$domain" ]]; then
-        print_error "Tên miền không được để trống"
+    # List sites
+    if [[ ! -f "$SITES_DB" ]] || [[ ! -s "$SITES_DB" ]]; then
+        print_warning "Chưa có site nào được tạo"
+        show_footer
+        pause
+        return
+    fi
+
+    echo "Danh sách sites:"
+    echo ""
+
+    # Build array of domains
+    declare -a domains=()
+    local count=1
+    while IFS='|' read -r domain site_name site_user db_name db_user site_root created_at; do
+        domains+=("$domain")
+        echo "  $count. $domain ($site_name)"
+        ((count++))
+    done < "$SITES_DB"
+
+    echo ""
+    read -p "Nhập số thứ tự hoặc tên miền: " input
+    input=$(echo "$input" | tr '[:upper:]' '[:lower:]' | sed 's/^www\.//')
+
+    if [[ -z "$input" ]]; then
+        print_error "Không được để trống"
         pause
         return 1
     fi
 
+    # Check if input is a number
+    local domain
+    if [[ "$input" =~ ^[0-9]+$ ]]; then
+        # Input is a number - get domain from array
+        local index=$((input - 1))
+        if [[ $index -ge 0 ]] && [[ $index -lt ${#domains[@]} ]]; then
+            domain="${domains[$index]}"
+        else
+            print_error "Số thứ tự không hợp lệ"
+            pause
+            return 1
+        fi
+    else
+        # Input is domain name
+        domain="$input"
+    fi
+
     if ! site_exists "$domain"; then
-        print_error "Site không tồn tại"
+        print_error "Site không tồn tại: $domain"
         pause
         return 1
     fi
