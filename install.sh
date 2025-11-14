@@ -13,9 +13,9 @@ NC='\033[0m' # No Color
 # Installation directory
 INSTALL_DIR="/opt/wpminhminhscript"
 
-# Github repository (update this with your repo)
-GITHUB_REPO="https://github.com/yourusername/minhminhscript.git"
-GITHUB_BRANCH="main"
+# Github repository
+GITHUB_REPO="https://github.com/qminhhp/minhminhscript.git"
+GITHUB_BRANCH="claude/vps-wordpress-management-script-011CV63HHAiT1yQs5Zo7Lx54"
 
 # Print functions
 print_info() {

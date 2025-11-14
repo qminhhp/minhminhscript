@@ -169,6 +169,25 @@ Công cụ quản lý nhiều WordPress sites trên VPS với kiến trúc bảo
 - Tạo báo cáo hệ thống
 - Giám sát real-time
 
+### 🔄 VPS & Sites Migration
+- **Transfer toàn bộ VPS** - Rsync toàn bộ hệ thống sang VPS mới
+- **Transfer từng site** - Di chuyển 1 WordPress site sang VPS khác
+- **Transfer tất cả sites** - Chuyển tất cả sites cùng lúc
+- **Import/Export packages** - Backup site thành package để di chuyển
+- **Auto setup on destination** - Tự động tạo user, database, pool, vhost
+- **SSH-based transfer** - Rsync qua SSH an toàn và nhanh
+
+### 🤖 n8n Workflow Automation
+- **Docker-based deployment** - n8n chạy trong Docker container
+- **Multiple instances** - Quản lý nhiều n8n instances trên một VPS
+- **Nginx reverse proxy** - Tự động config với WebSocket support
+- **SSL-ready** - Tích hợp Let's Encrypt
+- **Basic Auth** - Bảo vệ trước khi setup
+- **400+ integrations** - Google, Slack, WordPress, GitHub, etc.
+- **Backup workflows** - Backup credentials & workflows
+- **Auto update** - Cập nhật lên version mới nhất
+- **Use cases**: Auto backup → Cloud, Monitor uptime → Alerts, Auto social sharing, Form → Sheets + Email
+
 ## 📋 Yêu cầu hệ thống
 
 - **OS**: Ubuntu 20.04/22.04 hoặc Debian 10/11
@@ -186,14 +205,16 @@ Công cụ quản lý nhiều WordPress sites trên VPS với kiến trúc bảo
 Cài đặt tự động với một dòng lệnh:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/minhminhscript/main/install.sh | sudo bash
+curl -sL https://raw.githubusercontent.com/qminhhp/minhminhscript/claude/vps-wordpress-management-script-011CV63HHAiT1yQs5Zo7Lx54/install.sh | bash
 ```
 
 Hoặc với wget:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/yourusername/minhminhscript/main/install.sh | sudo bash
+wget -qO- https://raw.githubusercontent.com/qminhhp/minhminhscript/claude/vps-wordpress-management-script-011CV63HHAiT1yQs5Zo7Lx54/install.sh | bash
 ```
+
+📖 **[Xem hướng dẫn cài đặt chi tiết →](INSTALLATION.md)**
 
 ### Cài đặt thủ công
 
