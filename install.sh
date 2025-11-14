@@ -17,6 +17,9 @@ INSTALL_DIR="/opt/wpminhminhscript"
 GITHUB_REPO="https://github.com/qminhhp/minhminhscript.git"
 GITHUB_BRANCH="claude/vps-wordpress-management-script-011CV63HHAiT1yQs5Zo7Lx54"
 
+# Auto install stack flag
+AUTO_INSTALL_STACK="${AUTO_INSTALL:-no}"
+
 # Print functions
 print_info() {
     echo -e "${YELLOW}[INFO]${NC} $1"
@@ -403,6 +406,37 @@ show_completion() {
 
 # Ask user if they want to install stack
 ask_install_stack() {
+    # Check if auto install is enabled
+    if [[ "$AUTO_INSTALL_STACK" == "yes" ]] || [[ "$AUTO_INSTALL_STACK" == "y" ]] || [[ "$AUTO_INSTALL_STACK" == "1" ]]; then
+        print_info "Chế độ tự động: Đang cài đặt LEMP Stack + Docker..."
+        install_full_stack
+
+        echo ""
+        print_success "Hoàn tất! Bạn có thể chạy script ngay:"
+        echo "  wpminhminhscript"
+        echo ""
+        print_warning "Đừng quên chạy để bảo mật MariaDB:"
+        echo "  mysql_secure_installation"
+        echo ""
+        return 0
+    fi
+
+    # Check if running in pipe (cannot read from terminal)
+    if ! [ -t 0 ]; then
+        print_warning "Phát hiện chạy qua pipe - bỏ qua cài stack tự động"
+        echo ""
+        print_info "Để tự động cài LEMP stack, sử dụng:"
+        echo "  curl -sL ... | AUTO_INSTALL=yes bash"
+        echo ""
+        echo "Hoặc download và chạy trực tiếp:"
+        echo "  curl -O https://raw.githubusercontent.com/.../install.sh"
+        echo "  bash install.sh"
+        echo ""
+        show_completion
+        return 0
+    fi
+
+    # Interactive mode
     echo ""
     echo "============================================"
     echo -e "${YELLOW}Cài đặt LEMP Stack + Docker?${NC}"
@@ -436,6 +470,41 @@ ask_install_stack() {
     esac
 }
 
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -f|--full)
+                AUTO_INSTALL_STACK="yes"
+                shift
+                ;;
+            -h|--help)
+                echo "WP Minhminh Script - Auto Installer"
+                echo ""
+                echo "Usage: $0 [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  -f, --full    Tự động cài đặt LEMP stack + Docker"
+                echo "  -h, --help    Hiển thị trợ giúp này"
+                echo ""
+                echo "Examples:"
+                echo "  $0              # Chỉ cài script (interactive)"
+                echo "  $0 --full       # Cài script + LEMP stack tự động"
+                echo ""
+                echo "  # Qua pipe:"
+                echo "  curl -sL ... | bash               # Chỉ cài script"
+                echo "  curl -sL ... | AUTO_INSTALL=yes bash  # Cài script + stack"
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Run '$0 --help' for usage information"
+                exit 1
+                ;;
+        esac
+    done
+}
+
 # Main installation
 main() {
     echo "============================================"
@@ -457,5 +526,6 @@ main() {
     ask_install_stack
 }
 
-# Run main
+# Parse arguments and run
+parse_args "$@"
 main
