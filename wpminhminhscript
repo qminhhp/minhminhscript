@@ -1,0 +1,521 @@
+#!/bin/bash
+# WP Minhminh Script - WordPress VPS Management Tool
+# Version: 1.0.0
+# Author: Minhminh
+# Description: Quản lý nhiều WordPress sites trên VPS với PHP-FPM pools riêng biệt
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load common functions
+source "${SCRIPT_DIR}/lib/common.sh"
+
+# Initialize
+initialize
+
+# Load modules
+load_modules() {
+    source "${MODULES_DIR}/site/site-manager.sh"
+    source "${MODULES_DIR}/phpfpm/phpfpm-manager.sh"
+    source "${MODULES_DIR}/nginx/nginx-manager.sh"
+    source "${MODULES_DIR}/database/database-manager.sh"
+    source "${MODULES_DIR}/backup/backup-manager.sh"
+    source "${MODULES_DIR}/cache/cache-manager.sh"
+    source "${MODULES_DIR}/monitor/monitor-manager.sh"
+    source "${MODULES_DIR}/wordpress/wordpress-menu.sh"
+    source "${MODULES_DIR}/domain/domain-menu.sh"
+    source "${MODULES_DIR}/security/security-menu.sh"
+    source "${MODULES_DIR}/migration/migration-menu.sh"
+}
+
+# Main menu
+show_main_menu() {
+    show_header
+    echo -e "${CYAN}MENU CHÍNH${NC}"
+    echo ""
+    echo "  1. Quản lý Sites"
+    echo "  2. Quản lý Database"
+    echo "  3. Quản lý Cache"
+    echo "  4. Backup & Restore"
+    echo "  5. WordPress Nâng Cao"
+    echo "  6. Quản lý Domains"
+    echo "  7. Bảo Mật (Firewall, Fail2ban, Logrotate)"
+    echo "  8. Giám sát Hệ thống"
+    echo "  9. Chuyển VPS & Sites (Migration)"
+    echo " 10. Cài đặt & Cấu hình"
+    echo "  0. Thoát"
+    echo ""
+    show_footer
+}
+
+# Site management menu
+show_site_menu() {
+    while true; do
+        show_header
+        echo -e "${CYAN}QUẢN LÝ SITES${NC}"
+        echo ""
+        echo "  1. Thêm site mới"
+        echo "  2. Xóa site"
+        echo "  3. Danh sách sites"
+        echo "  4. Thông tin site"
+        echo "  5. Cài đặt SSL"
+        echo "  6. Gia hạn SSL"
+        echo "  7. Enable/Disable site"
+        echo "  0. Quay lại"
+        echo ""
+        show_footer
+
+        read -p "Chọn chức năng: " choice
+
+        case $choice in
+            1)
+                add_site
+                ;;
+            2)
+                remove_site
+                ;;
+            3)
+                list_sites
+                ;;
+            4)
+                show_site_info
+                ;;
+            5)
+                read -p "Nhập tên miền: " domain
+                read -p "Nhập site name: " site_name
+                setup_ssl "$domain" "$site_name"
+                pause
+                ;;
+            6)
+                renew_ssl
+                pause
+                ;;
+            7)
+                echo ""
+                read -p "Nhập site name: " site_name
+                echo "1. Enable site"
+                echo "2. Disable site"
+                read -p "Chọn: " action
+                if [[ "$action" == "1" ]]; then
+                    enable_nginx_site "$site_name"
+                else
+                    disable_nginx_site "$site_name"
+                fi
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                print_error "Lựa chọn không hợp lệ"
+                pause
+                ;;
+        esac
+    done
+}
+
+# Database management menu
+show_database_menu() {
+    while true; do
+        show_header
+        echo -e "${CYAN}QUẢN LÝ DATABASE${NC}"
+        echo ""
+        echo "  1. Danh sách databases"
+        echo "  2. Backup database"
+        echo "  3. Restore database"
+        echo "  4. Optimize database"
+        echo "  5. Cleanup WordPress database"
+        echo "  6. Xem dung lượng database"
+        echo "  0. Quay lại"
+        echo ""
+        show_footer
+
+        read -p "Chọn chức năng: " choice
+
+        case $choice in
+            1)
+                list_databases
+                ;;
+            2)
+                read -p "Nhập tên database: " db_name
+                backup_database "$db_name"
+                pause
+                ;;
+            3)
+                read -p "Nhập tên database: " db_name
+                read -p "Nhập đường dẫn file backup: " backup_file
+                restore_database "$db_name" "$backup_file"
+                pause
+                ;;
+            4)
+                read -p "Nhập tên database: " db_name
+                optimize_database "$db_name"
+                pause
+                ;;
+            5)
+                read -p "Nhập tên database: " db_name
+                read -p "Nhập table prefix (mặc định: wp_): " db_prefix
+                db_prefix=${db_prefix:-wp_}
+                cleanup_wordpress_db "$db_name" "$db_prefix"
+                pause
+                ;;
+            6)
+                read -p "Nhập tên database: " db_name
+                echo "Dung lượng: $(get_database_size "$db_name")"
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                print_error "Lựa chọn không hợp lệ"
+                pause
+                ;;
+        esac
+    done
+}
+
+# Cache management menu
+show_cache_menu() {
+    while true; do
+        show_header
+        echo -e "${CYAN}QUẢN LÝ CACHE${NC}"
+        echo ""
+        echo "  1. Xóa cache một site"
+        echo "  2. Xóa cache tất cả sites"
+        echo "  3. Trạng thái cache"
+        echo "  4. Enable/Disable OPcache"
+        echo "  5. Cài đặt Redis"
+        echo "  6. Cài đặt Memcached"
+        echo "  0. Quay lại"
+        echo ""
+        show_footer
+
+        read -p "Chọn chức năng: " choice
+
+        case $choice in
+            1)
+                read -p "Nhập tên miền: " domain
+                clear_site_cache "$domain"
+                pause
+                ;;
+            2)
+                clear_all_cache
+                ;;
+            3)
+                get_cache_status
+                ;;
+            4)
+                echo "1. Enable OPcache"
+                echo "2. Disable OPcache"
+                read -p "Chọn: " action
+                if [[ "$action" == "1" ]]; then
+                    enable_opcache
+                else
+                    disable_opcache
+                fi
+                pause
+                ;;
+            5)
+                echo "1. Cài đặt Redis"
+                echo "2. Gỡ cài đặt Redis"
+                read -p "Chọn: " action
+                if [[ "$action" == "1" ]]; then
+                    install_redis
+                else
+                    uninstall_redis
+                fi
+                pause
+                ;;
+            6)
+                echo "1. Cài đặt Memcached"
+                echo "2. Gỡ cài đặt Memcached"
+                read -p "Chọn: " action
+                if [[ "$action" == "1" ]]; then
+                    install_memcached
+                else
+                    uninstall_memcached
+                fi
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                print_error "Lựa chọn không hợp lệ"
+                pause
+                ;;
+        esac
+    done
+}
+
+# Backup menu
+show_backup_menu() {
+    while true; do
+        show_header
+        echo -e "${CYAN}BACKUP & RESTORE${NC}"
+        echo ""
+        echo "  1. Backup một site"
+        echo "  2. Backup tất cả sites"
+        echo "  3. Restore site"
+        echo "  4. Danh sách backups"
+        echo "  5. Xóa backups cũ"
+        echo "  6. Cài đặt auto backup"
+        echo "  0. Quay lại"
+        echo ""
+        show_footer
+
+        read -p "Chọn chức năng: " choice
+
+        case $choice in
+            1)
+                read -p "Nhập tên miền: " domain
+                backup_site "$domain"
+                pause
+                ;;
+            2)
+                auto_backup_all
+                ;;
+            3)
+                read -p "Nhập đường dẫn backup: " backup_dir
+                restore_site "$backup_dir"
+                pause
+                ;;
+            4)
+                list_backups
+                ;;
+            5)
+                read -p "Xóa backups cũ hơn (ngày, mặc định 7): " days
+                days=${days:-7}
+                cleanup_old_backups "$days"
+                pause
+                ;;
+            6)
+                echo "1. Daily (hàng ngày)"
+                echo "2. Weekly (hàng tuần)"
+                echo "3. Monthly (hàng tháng)"
+                echo "4. Xóa auto backup"
+                read -p "Chọn: " schedule_choice
+                case $schedule_choice in
+                    1) setup_auto_backup_cron "daily" ;;
+                    2) setup_auto_backup_cron "weekly" ;;
+                    3) setup_auto_backup_cron "monthly" ;;
+                    4) remove_auto_backup_cron ;;
+                esac
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                print_error "Lựa chọn không hợp lệ"
+                pause
+                ;;
+        esac
+    done
+}
+
+# Monitoring menu
+show_monitoring_menu() {
+    while true; do
+        show_header
+        echo -e "${CYAN}GIÁM SÁT HỆ THỐNG${NC}"
+        echo ""
+        echo "  1. Tài nguyên hệ thống"
+        echo "  2. Trạng thái dịch vụ"
+        echo "  3. PHP-FPM pools"
+        echo "  4. Dung lượng sites"
+        echo "  5. Dung lượng databases"
+        echo "  6. Trạng thái websites"
+        echo "  7. Thông tin hệ thống"
+        echo "  8. Tạo báo cáo"
+        echo "  9. Giám sát real-time"
+        echo "  0. Quay lại"
+        echo ""
+        show_footer
+
+        read -p "Chọn chức năng: " choice
+
+        case $choice in
+            1) check_system_resources ;;
+            2) check_services ;;
+            3) monitor_phpfpm_pools ;;
+            4) monitor_disk_usage ;;
+            5) monitor_database_sizes ;;
+            6) monitor_all_websites ;;
+            7) get_system_info ;;
+            8)
+                generate_status_report
+                pause
+                ;;
+            9) realtime_monitor ;;
+            0) break ;;
+            *)
+                print_error "Lựa chọn không hợp lệ"
+                pause
+                ;;
+        esac
+    done
+}
+
+# Settings menu
+show_settings_menu() {
+    while true; do
+        show_header
+        echo -e "${CYAN}CÀI ĐẶT & CẤU HÌNH${NC}"
+        echo ""
+        echo "  1. Kiểm tra yêu cầu hệ thống"
+        echo "  2. Test Nginx configuration"
+        echo "  3. Cấu hình login rate limiting"
+        echo "  4. Xem logs"
+        echo "  5. Về script"
+        echo "  0. Quay lại"
+        echo ""
+        show_footer
+
+        read -p "Chọn chức năng: " choice
+
+        case $choice in
+            1)
+                check_requirements
+                pause
+                ;;
+            2)
+                test_nginx_config
+                ;;
+            3)
+                enable_login_rate_limit
+                pause
+                ;;
+            4)
+                if [[ -f "$LOG_FILE" ]]; then
+                    tail -n 50 "$LOG_FILE"
+                else
+                    print_warning "Chưa có log"
+                fi
+                pause
+                ;;
+            5)
+                show_header
+                echo -e "${CYAN}VỀ SCRIPT${NC}"
+                echo ""
+                echo "WP Minhminh Script - WordPress VPS Management Tool"
+                echo "Version: 1.0.0"
+                echo ""
+                echo "Tính năng chính:"
+                echo "  • Quản lý nhiều WordPress sites"
+                echo "  • PHP-FPM pool riêng biệt cho mỗi site (bảo mật)"
+                echo "  • Nginx vhost tự động"
+                echo "  • Backup & Restore"
+                echo "  • Cache management"
+                echo "  • Database management"
+                echo "  • System monitoring"
+                echo ""
+                echo "Tham khảo từ:"
+                echo "  • Trellis (Roots.io)"
+                echo "  • WP Tang Toc OLS"
+                echo ""
+                show_footer
+                pause
+                ;;
+            0)
+                break
+                ;;
+            *)
+                print_error "Lựa chọn không hợp lệ"
+                pause
+                ;;
+        esac
+    done
+}
+
+# Main function
+main() {
+    # Check if running as root
+    check_root
+
+    # Load all modules
+    load_modules
+
+    # Main loop
+    while true; do
+        show_main_menu
+        read -p "Chọn chức năng: " choice
+
+        case $choice in
+            1) show_site_menu ;;
+            2) show_database_menu ;;
+            3) show_cache_menu ;;
+            4) show_backup_menu ;;
+            5) wordpress_advanced_menu ;;
+            6) domain_management_menu ;;
+            7) security_management_menu ;;
+            8) show_monitoring_menu ;;
+            9) migration_management_menu ;;
+            10) show_settings_menu ;;
+            0)
+                print_info "Tạm biệt!"
+                exit 0
+                ;;
+            *)
+                print_error "Lựa chọn không hợp lệ"
+                pause
+                ;;
+        esac
+    done
+}
+
+# Handle command line arguments
+if [[ $# -gt 0 ]]; then
+    load_modules
+    case "$1" in
+        "add-site")
+            add_site
+            ;;
+        "remove-site")
+            remove_site
+            ;;
+        "list-sites")
+            list_sites
+            ;;
+        "backup-all-auto")
+            auto_backup_all
+            ;;
+        "import-site")
+            import_site_from_package "$2"
+            ;;
+        "export-site")
+            if [[ -n "$2" ]]; then
+                prepare_site_export "$2"
+            else
+                print_error "Cần chỉ định tên miền"
+                echo "Usage: wpminhminhscript export-site <domain>"
+                exit 1
+            fi
+            ;;
+        "help")
+            echo "WP Minhminh Script - WordPress VPS Management Tool"
+            echo ""
+            echo "Usage: wpminhminhscript [command] [arguments]"
+            echo ""
+            echo "Commands:"
+            echo "  add-site                    Thêm site mới"
+            echo "  remove-site                 Xóa site"
+            echo "  list-sites                  Danh sách sites"
+            echo "  backup-all-auto             Backup tất cả sites (cho cron)"
+            echo "  import-site <path>          Import site từ migration package"
+            echo "  export-site <domain>        Export site thành migration package"
+            echo "  help                        Hiển thị trợ giúp"
+            echo ""
+            echo "Chạy không tham số để mở menu tương tác"
+            ;;
+        *)
+            print_error "Lệnh không hợp lệ: $1"
+            echo "Chạy 'wpminhminhscript help' để xem danh sách lệnh"
+            exit 1
+            ;;
+    esac
+else
+    # Run interactive menu
+    main
+fi
