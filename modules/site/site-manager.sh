@@ -340,10 +340,12 @@ remove_site() {
     IFS='|' read -r _ site_name site_user db_name db_user site_root _ <<< "$site_info"
 
     echo ""
-    print_warning "Cảnh báo: Hành động này sẽ xóa:"
+    print_warning "CẢNH BÁO: Bạn sắp xóa site: ${YELLOW}${domain}${NC}"
+    echo ""
+    echo "Hành động này sẽ xóa:"
     echo "  - Tất cả files của site"
-    echo "  - Database"
-    echo "  - System user"
+    echo "  - Database: $db_name"
+    echo "  - System user: $site_user"
     echo "  - PHP-FPM pool"
     echo "  - Nginx vhost"
     echo ""
@@ -354,9 +356,13 @@ remove_site() {
         return 1
     fi
 
-    read -p "Nhập lại tên miền để xác nhận: " confirm_domain
-    if [[ "$confirm_domain" != "$domain" ]]; then
-        print_error "Tên miền không khớp"
+    # Second confirmation - type site name
+    echo ""
+    print_warning "Để xác nhận, vui lòng nhập tên site: ${YELLOW}${site_name}${NC}"
+    read -p "Nhập tên site để xác nhận: " confirm_input
+
+    if [[ "$confirm_input" != "$site_name" ]]; then
+        print_error "Tên site không khớp. Đã hủy xóa."
         pause
         return 1
     fi
